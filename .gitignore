@@ -2,9 +2,12 @@
 /dist
 /*.egg-info
 
+/data
+
 *.so
 *.o
 *.pyc
 *.png
+*.fits
 
 __pycache__
