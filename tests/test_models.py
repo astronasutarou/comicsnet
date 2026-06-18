@@ -213,6 +213,27 @@ def test_model_call_minimal(factory, latent_shape, use_kl) -> None:
     'factory, latent_shape, use_kl',
     MODEL_CASES,
 )
+def test_model_encode_requires_explicit_weight(
+    factory,
+    latent_shape,
+    use_kl,
+) -> None:
+    del use_kl
+    model = factory()
+
+    with pytest.raises(TypeError):
+        model.encode(FRAME)
+
+    z_mean, z_logvar = model.encode(FRAME, None)
+
+    assert z_mean.shape == latent_shape
+    assert z_logvar.shape == latent_shape
+
+
+@pytest.mark.parametrize(
+    'factory, latent_shape, use_kl',
+    MODEL_CASES,
+)
 def test_model_fit_minimal(factory, latent_shape, use_kl) -> None:
     del latent_shape, use_kl
     model = factory()

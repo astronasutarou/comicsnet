@@ -66,7 +66,7 @@ class LinearBasisAE(eqx.Module):
     def encode(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _fraction_normalized_input(x, weight)
         coeff = self.encoder(jnp.ravel(model_input[0]))
@@ -141,7 +141,7 @@ class LinearBasisVAE(eqx.Module):
     def encode(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _fraction_normalized_input(x, weight)
         flat = jnp.ravel(model_input[0])

@@ -49,7 +49,7 @@ def fit(
             config,
         )
         losses.extend(step_losses)
-        background, _ = predict_background(model, data, config)
+        background, _ = predict_background(model, data, config, mask=mask)
         should_update = config.update_mask_each_outer_step
         should_update = should_update or outer_step == config.outer_steps - 1
         if should_update:
@@ -63,7 +63,12 @@ def fit(
                 mask_fraction_limit=config.mask_fraction_limit,
             )
 
-    background, uncertainty = predict_background(model, data, config)
+    background, uncertainty = predict_background(
+        model,
+        data,
+        config,
+        mask=mask,
+    )
     background = background * data_scale + data_offset
     uncertainty = uncertainty * data_scale
     return FitResult(
@@ -81,16 +86,26 @@ def predict_background(
     model: Any,
     cube: jax.Array,
     config: FitConfig,
+    mask: jax.Array | None = None,
 ) -> tuple[jax.Array, jax.Array]:
     '''Predict background mean and uncertainty frame-by-frame.'''
 
     data = normalize_cube(cube)
+    use_mask = mask is not None
+    if mask is None:
+        mask = jnp.zeros_like(data, dtype=bool)
+
     mean = jnp.zeros_like(data)
     uncertainty = jnp.zeros_like(data)
 
     for frame_index in range(data.shape[0]):
         x = channel_first(data[frame_index])
-        frame_mean, frame_logvar = model.predict(x)
+        m = channel_first(mask[frame_index])
+        w = observed_weight(m)
+        if use_mask:
+            frame_mean, frame_logvar = model.predict(x, w)
+        else:
+            frame_mean, frame_logvar = model.predict(x)
         mean = mean.at[frame_index].set(strip_channel(frame_mean))
         frame_logvar = jnp.clip(strip_channel(frame_logvar), -12.0, 8.0)
         frame_uncertainty = jnp.exp(0.5 * frame_logvar)

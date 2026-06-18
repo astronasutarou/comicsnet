@@ -85,7 +85,7 @@ class BasisAE(eqx.Module):
     def encode(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _mask_augmented_input(x, weight)
         h = jnn.gelu(self.encode_layer0(jnp.ravel(model_input)))
@@ -186,7 +186,7 @@ class BasisVAE(eqx.Module):
     def encode(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _mask_augmented_input(x, weight)
         h = jnn.gelu(self.encode_layer0(jnp.ravel(model_input)))

@@ -18,6 +18,16 @@ class ConstantLogvarModel:
         return mean, logvar
 
 
+class WeightEchoModel:
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array,
+    ) -> tuple[jax.Array, jax.Array]:
+        del x
+        return weight, jnp.zeros_like(weight)
+
+
 def test_predict_background_returns_stddev_uncertainty() -> None:
     cube = jnp.ones((2, 3, 4), dtype=jnp.float32)
 
@@ -34,4 +44,28 @@ def test_predict_background_returns_stddev_uncertainty() -> None:
     np.testing.assert_allclose(
         np.asarray(uncertainty),
         np.full((2, 3, 4), 2.0, dtype=np.float32),
+    )
+
+
+def test_predict_background_passes_mask_weight() -> None:
+    cube = jnp.ones((2, 2, 2), dtype=jnp.float32)
+    mask = jnp.zeros_like(cube, dtype=bool)
+    mask = mask.at[0, 0, 1].set(True)
+
+    background, uncertainty = predict_background(
+        WeightEchoModel(),
+        cube,
+        FitConfig(),
+        mask=mask,
+    )
+
+    expected = jnp.ones_like(cube)
+    expected = expected.at[0, 0, 1].set(0.0)
+    np.testing.assert_array_equal(
+        np.asarray(background),
+        np.asarray(expected),
+    )
+    np.testing.assert_array_equal(
+        np.asarray(uncertainty),
+        np.ones((2, 2, 2), dtype=np.float32),
     )
