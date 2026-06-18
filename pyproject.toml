@@ -1,0 +1,44 @@
+[build-system]
+requires = [
+  "setuptools>=64",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comicsnet"
+description = "COMICSNET"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = "MIT"
+authors = [
+  { name = "Ryou Ohsawa", email = "ryou.ohsawa@nao.ac.jp" }
+]
+maintainers = [
+  { name = "Ryou Ohsawa", email = "ryou.ohsawa@nao.ac.jp" }
+]
+requires-python = ">=3.11"
+dependencies = [
+  "numpy",
+  "scipy",
+  "astropy",
+  "scikit-learn",
+]
+dynamic = ["version"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[project.urls]
+Homepage = "https://github.com/astronasutarou/comicsnet"
+
+[tool.setuptools.packages.find]
+include = ["comicsnet*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "comicsnet.__version__" }
