@@ -13,21 +13,16 @@ import optax
 from .config import FitConfig
 from .losses import gaussian_nll, kl_normal
 from .masking import observed_weight, robust_scale, update_sparse_mask
-from .model import ConvVAE
-from .result import FitResult, make_sparse
-from .frames import (
-    channel_first,
-    normalize_cube,
-    sample_frame_index,
-    strip_channel,
-)
+from .result import FitResult
+from .frames import channel_first, normalize_cube, sample_frame_index
+from .frames import strip_channel
 
 
 def fit(
+    model: Any,
     cube: jax.Array,
     *,
     config: FitConfig | None = None,
-    model: Any | None = None,
 ) -> FitResult:
     '''Fit a background model and sparse residual mask.'''
 
@@ -37,13 +32,6 @@ def fit(
     raw_data = normalize_cube(cube)
     data, data_offset, data_scale = _standardize(raw_data, config)
     key = jax.random.PRNGKey(config.seed)
-    if model is None:
-        key, model_key = jax.random.split(key)
-        model = ConvVAE(
-            hidden_channels=config.hidden_channels,
-            latent_channels=config.latent_channels,
-            key=model_key,
-        )
 
     mask = jnp.zeros_like(data, dtype=bool)
     optimizer = optax.adam(config.learning_rate)
@@ -70,17 +58,18 @@ def fit(
                 background,
                 threshold_sigma=config.threshold_sigma,
                 min_scale=config.min_scale,
+                erosion_size=config.erosion_size,
+                dilation_size=config.dilation_size,
             )
 
     background, uncertainty = predict_background(model, data, config)
     background = background * data_scale + data_offset
     uncertainty = uncertainty * data_scale
-    sparse = make_sparse(raw_data, background, mask)
     return FitResult(
+        data=raw_data,
         background=background,
         uncertainty=uncertainty,
         mask=mask,
-        sparse=sparse,
         model=model,
         config=config,
         losses=tuple(losses),
@@ -175,8 +164,7 @@ def _loss(
     key: jax.Array,
     beta: float,
 ) -> jax.Array:
-    model_input = x * weight
-    mean, logvar, z_mean, z_logvar = model(model_input, key)
+    mean, logvar, z_mean, z_logvar = model(x, key, weight)
     regularization = jnp.asarray(0.0)
     if getattr(model, 'use_kl', True):
         regularization = kl_normal(z_mean, z_logvar)

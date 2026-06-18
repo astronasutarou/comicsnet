@@ -9,6 +9,20 @@ import jax.nn as jnn
 import jax.numpy as jnp
 
 
+def _ones_weight(x: jax.Array) -> jax.Array:
+    return jnp.ones_like(x)
+
+
+def _mask_augmented_input(
+    x: jax.Array,
+    weight: jax.Array | None,
+) -> jax.Array:
+    if weight is None:
+        weight = _ones_weight(x)
+
+    return jnp.concatenate([x * weight, weight], axis=0)
+
+
 class BasisAE(eqx.Module):
     '''Basis autoencoder for detector-fixed backgrounds.
 
@@ -43,7 +57,7 @@ class BasisAE(eqx.Module):
         keys = jax.random.split(key, 4)
 
         self.encode_layer0 = eqx.nn.Linear(
-            n_pixels,
+            2 * n_pixels,
             hidden_dim,
             key=keys[0],
         )
@@ -68,8 +82,13 @@ class BasisAE(eqx.Module):
         self.basis_dim = basis_dim
         self.use_kl = False
 
-    def encode(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        h = jnn.gelu(self.encode_layer0(jnp.ravel(x[0])))
+    def encode(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        model_input = _mask_augmented_input(x, weight)
+        h = jnn.gelu(self.encode_layer0(jnp.ravel(model_input)))
         latent = self.encode_layer1(h)
         latent_logvar = jnp.zeros_like(latent)
         return latent, latent_logvar
@@ -83,14 +102,19 @@ class BasisAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
+        weight: jax.Array | None = None,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         del key
-        latent, latent_logvar = self.encode(x)
+        latent, latent_logvar = self.encode(x, weight)
         mean, logvar = self.decode(latent)
         return mean, logvar, latent, latent_logvar
 
-    def predict(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        latent, _ = self.encode(x)
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        latent, _ = self.encode(x, weight)
         return self.decode(latent)
 
 
@@ -129,7 +153,7 @@ class BasisVAE(eqx.Module):
         keys = jax.random.split(key, 5)
 
         self.encode_layer0 = eqx.nn.Linear(
-            n_pixels,
+            2 * n_pixels,
             hidden_dim,
             key=keys[0],
         )
@@ -159,8 +183,13 @@ class BasisVAE(eqx.Module):
         self.basis_dim = basis_dim
         self.use_kl = True
 
-    def encode(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        h = jnn.gelu(self.encode_layer0(jnp.ravel(x[0])))
+    def encode(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        model_input = _mask_augmented_input(x, weight)
+        h = jnn.gelu(self.encode_layer0(jnp.ravel(model_input)))
         return self.z_mean(h), self.z_logvar(h)
 
     def decode(self, z: jax.Array) -> tuple[jax.Array, jax.Array]:
@@ -172,13 +201,18 @@ class BasisVAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
+        weight: jax.Array | None = None,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        z_mean, z_logvar = self.encode(x)
+        z_mean, z_logvar = self.encode(x, weight)
         eps = jax.random.normal(key, z_mean.shape)
         z = z_mean + jnp.exp(0.5 * z_logvar) * eps
         mean, logvar = self.decode(z)
         return mean, logvar, z_mean, z_logvar
 
-    def predict(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        z_mean, _ = self.encode(x)
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        z_mean, _ = self.encode(x, weight)
         return self.decode(z_mean)

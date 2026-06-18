@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 import jax
 import jax.numpy as jnp
 
@@ -21,12 +23,93 @@ def update_sparse_mask(
     *,
     threshold_sigma: float,
     min_scale: float,
+    erosion_size: int,
+    dilation_size: int,
+    modifier: Callable = lambda x: x,
 ) -> jax.Array:
     '''Update the sparse-signal mask from standardized residuals.'''
 
     residual = cube - background
     scale = robust_scale(residual, min_scale)
-    return jnp.abs(residual) > threshold_sigma * scale
+    mask = modifier(residual) > threshold_sigma * scale
+    return binary_opening(mask, erosion_size, dilation_size)
+
+
+def binary_opening(
+    mask: jax.Array,
+    erosion_size: int,
+    dilation_size: int,
+) -> jax.Array:
+    '''Apply spatial circular binary opening to a mask.
+
+    For movie masks, opening is applied only over the final two spatial axes.
+    The time axis is not connected by the morphology operation.
+    '''
+
+    if mask.ndim == 0:
+        return mask
+
+    values = mask.astype(jnp.float32)
+
+    if erosion_size > 1:
+        erosion_kernel = circular_kernel(erosion_size)
+        values = _binary_erosion(values, erosion_kernel)
+
+    if dilation_size > 1:
+        dilation_kernel = circular_kernel(dilation_size)
+        values = _binary_dilation(values, dilation_kernel)
+
+    return values.astype(bool)
+
+
+def circular_kernel(opening_size: int) -> jax.Array:
+    '''Return a discretized circular 2D kernel.'''
+
+    if opening_size <= 1:
+        return jnp.ones((1, 1), dtype=bool)
+
+    center = (opening_size - 1) / 2.0
+    radius = (opening_size - 1) / 2.0
+    y, x = jnp.ogrid[:opening_size, :opening_size]
+    distance2 = (y - center) ** 2 + (x - center) ** 2
+    return distance2 <= radius ** 2
+
+
+def _binary_erosion(values: jax.Array, kernel: jax.Array) -> jax.Array:
+    counts = _spatial_convolve(values, kernel)
+    return (counts == jnp.sum(kernel)).astype(jnp.float32)
+
+
+def _binary_dilation(values: jax.Array, kernel: jax.Array) -> jax.Array:
+    counts = _spatial_convolve(values, kernel)
+    return (counts > 0).astype(jnp.float32)
+
+
+def _spatial_convolve(values: jax.Array, kernel: jax.Array) -> jax.Array:
+    if values.ndim == 1:
+        values = values[jnp.newaxis, :]
+        return _spatial_convolve_2d(values, kernel)[0]
+
+    leading_shape = values.shape[:-2]
+    spatial_shape = values.shape[-2:]
+    frames = jnp.reshape(values, (-1, *spatial_shape))
+    convolved = jax.vmap(lambda frame: _spatial_convolve_2d(frame, kernel))(
+        frames,
+    )
+    return jnp.reshape(convolved, (*leading_shape, *spatial_shape))
+
+
+def _spatial_convolve_2d(values: jax.Array, kernel: jax.Array) -> jax.Array:
+    x = values[jnp.newaxis, jnp.newaxis, :, :]
+    k = kernel.astype(values.dtype)[jnp.newaxis, jnp.newaxis, :, :]
+    y = jax.lax.conv_general_dilated(
+        x,
+        k,
+        window_strides=(1, 1),
+        padding='SAME',
+        dimension_numbers=('NCHW', 'OIHW', 'NCHW'),
+    )
+    return y[0, 0]
 
 
 def observed_weight(mask: jax.Array) -> jax.Array:

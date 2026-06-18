@@ -37,6 +37,11 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/astronasutarou/comicsnet"
 
+[project.optional-dependencies]
+test = [
+  "pytest",
+]
+
 [tool.setuptools.packages.find]
 include = ["comicsnet*"]
 

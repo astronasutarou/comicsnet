@@ -8,6 +8,22 @@ import jax
 import jax.numpy as jnp
 
 
+def _ones_weight(x: jax.Array) -> jax.Array:
+    return jnp.ones_like(x)
+
+
+def _fraction_normalized_input(
+    x: jax.Array,
+    weight: jax.Array | None,
+) -> jax.Array:
+    if weight is None:
+        weight = _ones_weight(x)
+
+    fraction = jnp.mean(weight)
+    fraction = jnp.maximum(fraction, 1.0e-6)
+    return x * weight / fraction
+
+
 class LinearBasisAE(eqx.Module):
     '''Linear basis autoencoder for detector-fixed backgrounds.
 
@@ -47,8 +63,13 @@ class LinearBasisAE(eqx.Module):
         self.latent_dim = latent_dim
         self.use_kl = False
 
-    def encode(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        coeff = self.encoder(jnp.ravel(x[0]))
+    def encode(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        model_input = _fraction_normalized_input(x, weight)
+        coeff = self.encoder(jnp.ravel(model_input[0]))
         coeff_logvar = jnp.zeros_like(coeff)
         return coeff, coeff_logvar
 
@@ -60,14 +81,19 @@ class LinearBasisAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
+        weight: jax.Array | None = None,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         del key
-        coeff, coeff_logvar = self.encode(x)
+        coeff, coeff_logvar = self.encode(x, weight)
         mean, logvar = self.decode(coeff)
         return mean, logvar, coeff, coeff_logvar
 
-    def predict(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        coeff, _ = self.encode(x)
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        coeff, _ = self.encode(x, weight)
         return self.decode(coeff)
 
 
@@ -112,8 +138,13 @@ class LinearBasisVAE(eqx.Module):
         self.latent_dim = latent_dim
         self.use_kl = True
 
-    def encode(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        flat = jnp.ravel(x[0])
+    def encode(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        model_input = _fraction_normalized_input(x, weight)
+        flat = jnp.ravel(model_input[0])
         return self.z_mean(flat), self.z_logvar(flat)
 
     def decode(self, z: jax.Array) -> tuple[jax.Array, jax.Array]:
@@ -124,13 +155,18 @@ class LinearBasisVAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
+        weight: jax.Array | None = None,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        z_mean, z_logvar = self.encode(x)
+        z_mean, z_logvar = self.encode(x, weight)
         eps = jax.random.normal(key, z_mean.shape)
         z = z_mean + jnp.exp(0.5 * z_logvar) * eps
         mean, logvar = self.decode(z)
         return mean, logvar, z_mean, z_logvar
 
-    def predict(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        z_mean, _ = self.encode(x)
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        z_mean, _ = self.encode(x, weight)
         return self.decode(z_mean)

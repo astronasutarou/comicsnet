@@ -16,13 +16,21 @@ from .config import FitConfig
 class FitResult:
     '''Result returned by :func:`comicsnet.fit`.'''
 
+    data: jax.Array
     background: jax.Array
     uncertainty: jax.Array
     mask: jax.Array
-    sparse: jax.Array
     model: Any
     config: FitConfig
     losses: tuple[float, ...]
+
+    @property
+    def residual(self):
+        return self.data - self.background
+
+    @property
+    def sparse(self):
+        return jnp.where(self.mask, self.residual, 0.0)
 
 
 def make_sparse(

@@ -9,6 +9,20 @@ import jax.nn as jnn
 import jax.numpy as jnp
 
 
+def _ones_weight(x: jax.Array) -> jax.Array:
+    return jnp.ones_like(x)
+
+
+def _mask_augmented_input(
+    x: jax.Array,
+    weight: jax.Array | None,
+) -> jax.Array:
+    if weight is None:
+        weight = _ones_weight(x)
+
+    return jnp.concatenate([x * weight, weight], axis=0)
+
+
 class ConvAE(eqx.Module):
     '''Small fully convolutional AE for full-frame background modelling.'''
 
@@ -31,7 +45,7 @@ class ConvAE(eqx.Module):
         keys = jax.random.split(key, 7)
         self.encode_layer0 = eqx.nn.Conv(
             2,
-            1,
+            2,
             hidden_channels,
             3,
             padding='SAME',
@@ -87,8 +101,13 @@ class ConvAE(eqx.Module):
         )
         self.use_kl = False
 
-    def encode(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        h = jnn.gelu(self.encode_layer0(x))
+    def encode(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        model_input = _mask_augmented_input(x, weight)
+        h = jnn.gelu(self.encode_layer0(model_input))
         h = jnn.gelu(self.encode_layer1(h))
         z = self.z_layer(h)
         z_logvar = jnp.zeros_like(z)
@@ -103,14 +122,19 @@ class ConvAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
+        weight: jax.Array | None = None,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         del key
-        z, z_logvar = self.encode(x)
+        z, z_logvar = self.encode(x, weight)
         x_mean, x_logvar = self.decode(z)
         return x_mean, x_logvar, z, z_logvar
 
-    def predict(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        z, _ = self.encode(x)
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        z, _ = self.encode(x, weight)
         x_mean, x_logvar = self.decode(z)
         return x_mean, x_logvar
 
@@ -142,7 +166,7 @@ class ConvVAE(eqx.Module):
         keys = jax.random.split(key, 8)
         self.encode_layer0 = eqx.nn.Conv(
             2,
-            1,
+            2,
             hidden_channels,
             3,
             padding='SAME',
@@ -206,8 +230,13 @@ class ConvVAE(eqx.Module):
         )
         self.use_kl = True
 
-    def encode(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        h = jnn.gelu(self.encode_layer0(x))
+    def encode(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        model_input = _mask_augmented_input(x, weight)
+        h = jnn.gelu(self.encode_layer0(model_input))
         h = jnn.gelu(self.encode_layer1(h))
         return self.z_mean(h), self.z_logvar(h)
 
@@ -220,14 +249,19 @@ class ConvVAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
+        weight: jax.Array | None = None,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        z_mean, z_logvar = self.encode(x)
+        z_mean, z_logvar = self.encode(x, weight)
         eps = jax.random.normal(key, z_mean.shape)
         z = z_mean + jnp.exp(0.5 * z_logvar) * eps
         x_mean, x_logvar = self.decode(z)
         return x_mean, x_logvar, z_mean, z_logvar
 
-    def predict(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
-        z_mean, _ = self.encode(x)
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array | None = None,
+    ) -> tuple[jax.Array, jax.Array]:
+        z_mean, _ = self.encode(x, weight)
         x_mean, x_logvar = self.decode(z_mean)
         return x_mean, x_logvar
