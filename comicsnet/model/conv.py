@@ -49,6 +49,7 @@ class ConvAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[0],
         )
         self.encode_layer1 = eqx.nn.Conv(
@@ -57,6 +58,7 @@ class ConvAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[1],
         )
         self.z_layer = eqx.nn.Conv(
@@ -65,6 +67,7 @@ class ConvAE(eqx.Module):
             latent_channels,
             1,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[2],
         )
         self.decode_layer0 = eqx.nn.Conv(
@@ -73,6 +76,7 @@ class ConvAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[3],
         )
         self.decode_layer1 = eqx.nn.Conv(
@@ -81,6 +85,7 @@ class ConvAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[4],
         )
         self.out_mean = eqx.nn.Conv(
@@ -89,6 +94,7 @@ class ConvAE(eqx.Module):
             1,
             1,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[5],
         )
         self.out_logvar = eqx.nn.Conv(
@@ -97,6 +103,7 @@ class ConvAE(eqx.Module):
             1,
             1,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[6],
         )
         self.use_kl = False
@@ -170,6 +177,7 @@ class ConvVAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[0],
         )
         self.encode_layer1 = eqx.nn.Conv(
@@ -178,6 +186,7 @@ class ConvVAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[1],
         )
         self.z_mean = eqx.nn.Conv(
@@ -186,6 +195,7 @@ class ConvVAE(eqx.Module):
             latent_channels,
             1,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[2],
         )
         self.z_logvar = eqx.nn.Conv(
@@ -194,6 +204,7 @@ class ConvVAE(eqx.Module):
             latent_channels,
             1,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[3],
         )
         self.decode_layer0 = eqx.nn.Conv(
@@ -202,6 +213,7 @@ class ConvVAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[4],
         )
         self.decode_layer1 = eqx.nn.Conv(
@@ -210,6 +222,7 @@ class ConvVAE(eqx.Module):
             hidden_channels,
             3,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[5],
         )
         self.out_mean = eqx.nn.Conv(
@@ -218,6 +231,7 @@ class ConvVAE(eqx.Module):
             1,
             1,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[6],
         )
         self.out_logvar = eqx.nn.Conv(
@@ -226,6 +240,7 @@ class ConvVAE(eqx.Module):
             1,
             1,
             padding='SAME',
+            padding_mode='REPLICATE',
             key=keys[7],
         )
         self.use_kl = True
