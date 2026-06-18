@@ -1,6 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Build](https://github.com/astronasutarou/comicsnet/actions/workflows/build.yml/badge.svg)](https://github.com/astronasutarou/comicsnet/actions/workflows/build.yml)
-[![Unit test](https://github.com/astronasutarou/comicsnet/actions/workflows/unittest.yml/badge.svg)](https://github.com/astronasutarou/comicsnet/actions/workflows/unittest.yml)
+[![Unittest](https://github.com/astronasutarou/comicsnet/actions/workflows/unittest.yml/badge.svg)](https://github.com/astronasutarou/comicsnet/actions/workflows/unittest.yml)
 [![CodeQL](https://github.com/astronasutarou/comicsnet/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/astronasutarou/comicsnet/actions/workflows/github-code-scanning/codeql)
 
 # ComicsNet
