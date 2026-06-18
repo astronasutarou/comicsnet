@@ -18,6 +18,7 @@ def test_defaults() -> None:
     assert config.inner_steps == 100
     assert config.erosion_size == 3
     assert config.dilation_size == 7
+    assert config.mask_fraction_limit == 0.2
     assert config.learning_rate == 1.0e-4
     assert config.standardize
     assert config.update_mask_each_outer_step
@@ -30,6 +31,7 @@ def test_overrides() -> None:
         learning_rate=2.0e-3,
         erosion_size=5,
         dilation_size=9,
+        mask_fraction_limit=0.4,
         standardize=False,
     )
 
@@ -38,6 +40,7 @@ def test_overrides() -> None:
     assert config.learning_rate == 2.0e-3
     assert config.erosion_size == 5
     assert config.dilation_size == 9
+    assert config.mask_fraction_limit == 0.4
     assert not config.standardize
 
 

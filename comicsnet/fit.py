@@ -60,6 +60,7 @@ def fit(
                 min_scale=config.min_scale,
                 erosion_size=config.erosion_size,
                 dilation_size=config.dilation_size,
+                mask_fraction_limit=config.mask_fraction_limit,
             )
 
     background, uncertainty = predict_background(model, data, config)

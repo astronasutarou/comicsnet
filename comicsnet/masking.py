@@ -25,6 +25,7 @@ def update_sparse_mask(
     min_scale: float,
     erosion_size: int,
     dilation_size: int,
+    mask_fraction_limit: float,
     modifier: Callable = lambda x: x,
 ) -> jax.Array:
     '''Update the sparse-signal mask from standardized residuals.'''
@@ -32,7 +33,26 @@ def update_sparse_mask(
     residual = cube - background
     scale = robust_scale(residual, min_scale)
     mask = modifier(residual) > threshold_sigma * scale
-    return binary_opening(mask, erosion_size, dilation_size)
+    mask = binary_opening(mask, erosion_size, dilation_size)
+    return limit_mask_fraction(mask, mask_fraction_limit)
+
+
+def limit_mask_fraction(
+    mask: jax.Array,
+    mask_fraction_limit: float,
+) -> jax.Array:
+    '''Clear frames whose mask fraction exceeds a limit.'''
+
+    if mask_fraction_limit >= 1.0:
+        return mask
+
+    values = mask.astype(jnp.float32)
+    if mask.ndim < 2:
+        fraction = jnp.mean(values)
+        return jnp.where(fraction > mask_fraction_limit, False, mask)
+
+    fraction = jnp.mean(values, axis=(-2, -1), keepdims=True)
+    return jnp.where(fraction > mask_fraction_limit, False, mask)
 
 
 def binary_opening(

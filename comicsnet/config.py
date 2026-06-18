@@ -18,6 +18,7 @@ class FitConfig:
     min_scale: float = 1.0e-6
     erosion_size: int = 3
     dilation_size: int = 7
+    mask_fraction_limit: float = 0.2
     seed: int = 0
     standardize: bool = True
     update_mask_each_outer_step: bool = True

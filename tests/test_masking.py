@@ -10,6 +10,7 @@ import pytest
 from comicsnet.masking import (
     binary_opening,
     circular_kernel,
+    limit_mask_fraction,
     observed_weight,
     robust_scale,
     update_sparse_mask,
@@ -43,6 +44,7 @@ def test_update_sparse_mask_thresholds_residuals() -> None:
         min_scale=1.0,
         erosion_size=1,
         dilation_size=1,
+        mask_fraction_limit=1.0,
     )
 
     np.testing.assert_array_equal(
@@ -118,3 +120,52 @@ def test_binary_opening_can_use_larger_dilation() -> None:
     assert bool(opened[3, 3])
     assert bool(opened[1, 3])
     assert bool(opened[5, 3])
+
+
+def test_limit_mask_fraction_clears_large_2d_mask() -> None:
+    mask = jnp.zeros((4, 4), dtype=bool)
+    mask = mask.at[:2, :2].set(True)
+
+    limited = limit_mask_fraction(mask, mask_fraction_limit=0.2)
+
+    assert not bool(jnp.any(limited))
+
+
+def test_limit_mask_fraction_keeps_small_2d_mask() -> None:
+    mask = jnp.zeros((4, 4), dtype=bool)
+    mask = mask.at[0, 0].set(True)
+
+    limited = limit_mask_fraction(mask, mask_fraction_limit=0.2)
+
+    np.testing.assert_array_equal(np.asarray(limited), np.asarray(mask))
+
+
+def test_limit_mask_fraction_is_applied_per_frame() -> None:
+    mask = jnp.zeros((2, 4, 4), dtype=bool)
+    mask = mask.at[0, :2, :2].set(True)
+    mask = mask.at[1, 0, 0].set(True)
+
+    limited = limit_mask_fraction(mask, mask_fraction_limit=0.2)
+
+    expected = jnp.zeros((2, 4, 4), dtype=bool)
+    expected = expected.at[1, 0, 0].set(True)
+    np.testing.assert_array_equal(np.asarray(limited), np.asarray(expected))
+
+
+def test_update_sparse_mask_applies_mask_fraction_limit() -> None:
+    cube = jnp.ones((2, 4, 4), dtype=jnp.float32) * 10.0
+    cube = cube.at[1].set(0.0)
+    background = jnp.zeros_like(cube)
+
+    mask = update_sparse_mask(
+        cube,
+        background,
+        threshold_sigma=1.0,
+        min_scale=1.0,
+        erosion_size=1,
+        dilation_size=1,
+        mask_fraction_limit=0.2,
+    )
+
+    assert not bool(jnp.any(mask[0]))
+    assert not bool(jnp.any(mask[1]))
