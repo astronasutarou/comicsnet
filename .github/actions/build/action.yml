@@ -1,0 +1,24 @@
+name: Build comicsnet
+description: Build comicsnet distributions, install the wheel, and verify import.
+
+runs:
+  using: composite
+  steps:
+    - name: Install build frontend
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build
+
+    - name: Build source and wheel distributions
+      shell: bash
+      run: python -m build
+
+    - name: Install built wheel
+      shell: bash
+      run: python -m pip install dist/*.whl
+
+    - name: Check import
+      shell: bash
+      working-directory: /tmp
+      run: python -c "import comicsnet; print(comicsnet.__file__)"
