@@ -17,10 +17,10 @@ maintainers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-  "numpy",
-  "scipy",
   "astropy",
-  "scikit-learn",
+  "jax",
+  "equinox",
+  "optax",
 ]
 dynamic = ["version"]
 classifiers = [
