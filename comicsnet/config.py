@@ -13,6 +13,9 @@ class FitConfig:
     outer_steps: int = 10
     inner_steps: int = 100
     learning_rate: float = 1.0e-4
+    global_norm: float | None = None
+    adam_b1: float = 0.9
+    adam_b2: float = 0.999
     beta: float = 1.0e-4
     threshold_sigma: float = 5.0
     min_scale: float = 1.0e-6

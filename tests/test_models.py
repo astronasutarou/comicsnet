@@ -260,6 +260,9 @@ def test_model_fit_minimal(factory, latent_shape, use_kl) -> None:
     config = FitConfig(
         outer_steps=1,
         inner_steps=1,
+        global_norm=1.0,
+        adam_b1=0.95,
+        adam_b2=0.99,
         erosion_size=1,
         dilation_size=1,
     )

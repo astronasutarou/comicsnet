@@ -34,7 +34,7 @@ def fit(
     key = jax.random.PRNGKey(config.seed)
 
     mask = jnp.zeros_like(data, dtype=bool)
-    optimizer = optax.adam(config.learning_rate)
+    optimizer = _make_optimizer(config)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
     losses: list[float] = []
 
@@ -121,6 +121,21 @@ def _standardize(
     offset = jnp.median(data)
     scale = robust_scale(data - offset, config.min_scale)
     return (data - offset) / scale, offset, scale
+
+
+def _make_optimizer(config: FitConfig) -> optax.GradientTransformation:
+    optimizer = optax.adam(
+        config.learning_rate,
+        b1=config.adam_b1,
+        b2=config.adam_b2,
+    )
+    if config.global_norm is None:
+        return optimizer
+
+    return optax.chain(
+        optax.clip_by_global_norm(config.global_norm),
+        optimizer,
+    )
 
 
 def _train_inner_loop(

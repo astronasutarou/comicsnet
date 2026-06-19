@@ -20,6 +20,9 @@ def test_defaults() -> None:
     assert config.dilation_size == 7
     assert config.mask_fraction_limit == 0.2
     assert config.learning_rate == 1.0e-4
+    assert config.global_norm is None
+    assert config.adam_b1 == 0.9
+    assert config.adam_b2 == 0.999
     assert config.standardize
     assert config.update_mask_each_outer_step
 
@@ -29,6 +32,9 @@ def test_overrides() -> None:
         outer_steps=2,
         inner_steps=3,
         learning_rate=2.0e-3,
+        global_norm=1.0,
+        adam_b1=0.95,
+        adam_b2=0.99,
         erosion_size=5,
         dilation_size=9,
         mask_fraction_limit=0.4,
@@ -38,6 +44,9 @@ def test_overrides() -> None:
     assert config.outer_steps == 2
     assert config.inner_steps == 3
     assert config.learning_rate == 2.0e-3
+    assert config.global_norm == 1.0
+    assert config.adam_b1 == 0.95
+    assert config.adam_b2 == 0.99
     assert config.erosion_size == 5
     assert config.dilation_size == 9
     assert config.mask_fraction_limit == 0.4
