@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from comicsnet import FitConfig
+from comicsnet import FitConfig, LinearBasisAE, fit
 from comicsnet.fit import normalized_frame_coord, predict_background
 
 
@@ -73,7 +73,7 @@ def test_predict_background_returns_stddev_uncertainty() -> None:
     )
 
 
-def test_predict_background_passes_mask_weight() -> None:
+def test_predict_background_converts_mask_to_weight() -> None:
     cube = jnp.ones((2, 2, 2), dtype=jnp.float32)
     mask = jnp.zeros_like(cube, dtype=bool)
     mask = mask.at[0, 0, 1].set(True)
@@ -97,6 +97,23 @@ def test_predict_background_passes_mask_weight() -> None:
     )
 
 
+def test_predict_background_rejects_mask_shape_mismatch() -> None:
+    cube = jnp.ones((2, 2, 2), dtype=jnp.float32)
+    mask = jnp.zeros((2, 2), dtype=bool)
+
+    try:
+        predict_background(
+            WeightEchoModel(),
+            cube,
+            FitConfig(),
+            mask=mask,
+        )
+    except ValueError as error:
+        assert str(error) == 'mask must have shape (time, y, x)'
+    else:
+        raise AssertionError('ValueError was not raised')
+
+
 def test_predict_background_passes_frame_coord() -> None:
     cube = jnp.ones((3, 2, 2), dtype=jnp.float32)
 
@@ -116,4 +133,30 @@ def test_predict_background_passes_frame_coord() -> None:
     np.testing.assert_array_equal(
         np.asarray(uncertainty),
         np.ones((3, 2, 2), dtype=np.float32),
+    )
+
+
+def test_fit_uses_initial_mask_without_forced_mask_update() -> None:
+    cube = jnp.ones((2, 2, 2), dtype=jnp.float32)
+    mask = jnp.zeros_like(cube, dtype=bool)
+    mask = mask.at[1, 0, 0].set(True)
+    model = LinearBasisAE(
+        frame_shape=(2, 2),
+        latent_dim=1,
+        key=jax.random.PRNGKey(0),
+    )
+    config = FitConfig(
+        outer_steps=1,
+        inner_steps=1,
+        erosion_size=1,
+        dilation_size=1,
+        standardize=False,
+        update_mask=False,
+    )
+
+    result = fit(model, cube, config=config, mask=mask)
+
+    np.testing.assert_array_equal(
+        np.asarray(result.mask),
+        np.asarray(mask),
     )

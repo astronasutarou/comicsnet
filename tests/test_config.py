@@ -24,7 +24,7 @@ def test_defaults() -> None:
     assert config.adam_b1 == 0.9
     assert config.adam_b2 == 0.999
     assert config.standardize
-    assert config.update_mask_each_outer_step
+    assert config.update_mask
 
 
 def test_overrides() -> None:
@@ -39,6 +39,7 @@ def test_overrides() -> None:
         dilation_size=9,
         mask_fraction_limit=0.4,
         standardize=False,
+        update_mask=False,
     )
 
     assert config.outer_steps == 2
@@ -51,6 +52,7 @@ def test_overrides() -> None:
     assert config.dilation_size == 9
     assert config.mask_fraction_limit == 0.4
     assert not config.standardize
+    assert not config.update_mask
 
 
 def test_frozen() -> None:
@@ -65,8 +67,14 @@ def test_model_parameters_are_not_fit_config_fields() -> None:
 
     assert 'hidden_channels' not in names
     assert 'latent_channels' not in names
+    assert 'update_mask_each_outer_step' not in names
 
 
 def test_model_parameters_are_rejected() -> None:
     with pytest.raises(TypeError):
         FitConfig(hidden_channels=8)
+
+
+def test_old_update_mask_parameter_is_rejected() -> None:
+    with pytest.raises(TypeError):
+        FitConfig(update_mask_each_outer_step=False)

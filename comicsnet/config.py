@@ -24,4 +24,4 @@ class FitConfig:
     mask_fraction_limit: float = 0.2
     seed: int = 0
     standardize: bool = True
-    update_mask_each_outer_step: bool = True
+    update_mask: bool = True

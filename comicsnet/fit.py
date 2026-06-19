@@ -23,6 +23,7 @@ def fit(
     cube: jax.Array,
     *,
     config: FitConfig | None = None,
+    mask: jax.Array | None = None,
 ) -> FitResult:
     '''Fit a background model and sparse residual mask.'''
 
@@ -31,9 +32,10 @@ def fit(
 
     raw_data = normalize_cube(cube)
     data, data_offset, data_scale = _standardize(raw_data, config)
+    mask = _normalize_mask(mask, data)
+    weight = observed_weight(mask)
     key = jax.random.PRNGKey(config.seed)
 
-    mask = jnp.zeros_like(data, dtype=bool)
     optimizer = _make_optimizer(config)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
     losses: list[float] = []
@@ -44,15 +46,18 @@ def fit(
             opt_state,
             optimizer,
             data,
-            mask,
+            weight,
             key,
             config,
         )
         losses.extend(step_losses)
-        background, _ = predict_background(model, data, config, mask=mask)
-        should_update = config.update_mask_each_outer_step
-        should_update = should_update or outer_step == config.outer_steps - 1
-        if should_update:
+        background, _ = predict_background(
+            model,
+            data,
+            config,
+            mask=mask,
+        )
+        if config.update_mask:
             mask = update_sparse_mask(
                 data,
                 background,
@@ -62,6 +67,7 @@ def fit(
                 dilation_size=config.dilation_size,
                 mask_fraction_limit=config.mask_fraction_limit,
             )
+            weight = observed_weight(mask)
 
     background, uncertainty = predict_background(
         model,
@@ -91,16 +97,15 @@ def predict_background(
     '''Predict background mean and uncertainty frame-by-frame.'''
 
     data = normalize_cube(cube)
-    if mask is None:
-        mask = jnp.zeros_like(data, dtype=bool)
+    mask = _normalize_mask(mask, data)
+    weight = observed_weight(mask)
 
     mean = jnp.zeros_like(data)
     uncertainty = jnp.zeros_like(data)
 
     for frame_index in range(data.shape[0]):
         x = channel_first(data[frame_index])
-        m = channel_first(mask[frame_index])
-        w = observed_weight(m)
+        w = channel_first(weight[frame_index])
         frame_coord = normalized_frame_coord(frame_index, data.shape[0])
         frame_mean, frame_logvar = model.predict(x, w, frame_coord)
         mean = mean.at[frame_index].set(strip_channel(frame_mean))
@@ -123,6 +128,20 @@ def _standardize(
     return (data - offset) / scale, offset, scale
 
 
+def _normalize_mask(
+    mask: jax.Array | None,
+    data: jax.Array,
+) -> jax.Array:
+    if mask is None:
+        return jnp.zeros_like(data, dtype=bool)
+
+    mask = jnp.asarray(mask, dtype=bool)
+    if mask.shape != data.shape:
+        raise ValueError('mask must have shape (time, y, x)')
+
+    return mask
+
+
 def _make_optimizer(config: FitConfig) -> optax.GradientTransformation:
     optimizer = optax.adam(
         config.learning_rate,
@@ -143,7 +162,7 @@ def _train_inner_loop(
     opt_state: optax.OptState,
     optimizer: optax.GradientTransformation,
     data: jax.Array,
-    mask: jax.Array,
+    weight: jax.Array,
     key: jax.Array,
     config: FitConfig,
 ) -> tuple[Any, optax.OptState, jax.Array, tuple[float, ...]]:
@@ -153,8 +172,7 @@ def _train_inner_loop(
         key, frame_key, vae_key = jax.random.split(key, 3)
         frame_index = sample_frame_index(frame_key, data.shape[0])
         x = channel_first(data[frame_index])
-        m = channel_first(mask[frame_index])
-        w = observed_weight(m)
+        w = channel_first(weight[frame_index])
         frame_coord = normalized_frame_coord(frame_index, data.shape[0])
         model, opt_state, loss = _train_step(
             model,
