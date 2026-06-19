@@ -23,6 +23,24 @@ def _mask_augmented_input(
     return jnp.concatenate([x * weight, weight], axis=0)
 
 
+def _frame_feature(
+    frame_coord: jax.Array,
+    dtype,
+) -> jax.Array:
+    return jnp.reshape(jnp.asarray(frame_coord, dtype=dtype), (1,))
+
+
+def _encoder_input(
+    x: jax.Array,
+    weight: jax.Array | None,
+    frame_coord: jax.Array,
+) -> jax.Array:
+    model_input = _mask_augmented_input(x, weight)
+    return jnp.concatenate(
+        [jnp.ravel(model_input), _frame_feature(frame_coord, x.dtype)],
+    )
+
+
 class BasisAE(eqx.Module):
     '''Basis autoencoder for detector-fixed backgrounds.
 
@@ -57,7 +75,7 @@ class BasisAE(eqx.Module):
         keys = jax.random.split(key, 4)
 
         self.encode_layer0 = eqx.nn.Linear(
-            2 * n_pixels,
+            2 * n_pixels + 1,
             hidden_dim,
             key=keys[0],
         )
@@ -86,9 +104,14 @@ class BasisAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        model_input = _mask_augmented_input(x, weight)
-        h = jnn.gelu(self.encode_layer0(jnp.ravel(model_input)))
+        encoder_input = _encoder_input(
+            x,
+            weight,
+            frame_coord,
+        )
+        h = jnn.gelu(self.encode_layer0(encoder_input))
         latent = self.encode_layer1(h)
         latent_logvar = jnp.zeros_like(latent)
         return latent, latent_logvar
@@ -102,19 +125,21 @@ class BasisAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         del key
-        latent, latent_logvar = self.encode(x, weight)
+        latent, latent_logvar = self.encode(x, weight, frame_coord)
         mean, logvar = self.decode(latent)
         return mean, logvar, latent, latent_logvar
 
     def predict(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        latent, _ = self.encode(x, weight)
+        latent, _ = self.encode(x, weight, frame_coord)
         return self.decode(latent)
 
 
@@ -153,7 +178,7 @@ class BasisVAE(eqx.Module):
         keys = jax.random.split(key, 5)
 
         self.encode_layer0 = eqx.nn.Linear(
-            2 * n_pixels,
+            2 * n_pixels + 1,
             hidden_dim,
             key=keys[0],
         )
@@ -187,9 +212,14 @@ class BasisVAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        model_input = _mask_augmented_input(x, weight)
-        h = jnn.gelu(self.encode_layer0(jnp.ravel(model_input)))
+        encoder_input = _encoder_input(
+            x,
+            weight,
+            frame_coord,
+        )
+        h = jnn.gelu(self.encode_layer0(encoder_input))
         return self.z_mean(h), self.z_logvar(h)
 
     def decode(self, z: jax.Array) -> tuple[jax.Array, jax.Array]:
@@ -201,9 +231,10 @@ class BasisVAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        z_mean, z_logvar = self.encode(x, weight)
+        z_mean, z_logvar = self.encode(x, weight, frame_coord)
         eps = jax.random.normal(key, z_mean.shape)
         z = z_mean + jnp.exp(0.5 * z_logvar) * eps
         mean, logvar = self.decode(z)
@@ -212,7 +243,8 @@ class BasisVAE(eqx.Module):
     def predict(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        z_mean, _ = self.encode(x, weight)
+        z_mean, _ = self.encode(x, weight, frame_coord)
         return self.decode(z_mean)

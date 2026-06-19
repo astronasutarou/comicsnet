@@ -24,6 +24,13 @@ def _fraction_normalized_input(
     return x * weight / fraction
 
 
+def _frame_feature(
+    frame_coord: jax.Array,
+    dtype,
+) -> jax.Array:
+    return jnp.reshape(jnp.asarray(frame_coord, dtype=dtype), (1,))
+
+
 class LinearBasisAE(eqx.Module):
     '''Linear basis autoencoder for detector-fixed backgrounds.
 
@@ -52,7 +59,7 @@ class LinearBasisAE(eqx.Module):
         n_pixels = height * width
         encoder_key, basis_key = jax.random.split(key)
 
-        self.encoder = eqx.nn.Linear(n_pixels, latent_dim, key=encoder_key)
+        self.encoder = eqx.nn.Linear(n_pixels + 1, latent_dim, key=encoder_key)
         self.bias = jnp.zeros(frame_shape, dtype=jnp.float32)
         self.basis = init_scale * jax.random.normal(
             basis_key,
@@ -67,9 +74,13 @@ class LinearBasisAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _fraction_normalized_input(x, weight)
-        coeff = self.encoder(jnp.ravel(model_input[0]))
+        flat = jnp.concatenate(
+            [jnp.ravel(model_input[0]), _frame_feature(frame_coord, x.dtype)],
+        )
+        coeff = self.encoder(flat)
         coeff_logvar = jnp.zeros_like(coeff)
         return coeff, coeff_logvar
 
@@ -81,19 +92,21 @@ class LinearBasisAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         del key
-        coeff, coeff_logvar = self.encode(x, weight)
+        coeff, coeff_logvar = self.encode(x, weight, frame_coord)
         mean, logvar = self.decode(coeff)
         return mean, logvar, coeff, coeff_logvar
 
     def predict(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        coeff, _ = self.encode(x, weight)
+        coeff, _ = self.encode(x, weight, frame_coord)
         return self.decode(coeff)
 
 
@@ -126,8 +139,12 @@ class LinearBasisVAE(eqx.Module):
         n_pixels = height * width
         mean_key, logvar_key, basis_key = jax.random.split(key, 3)
 
-        self.z_mean = eqx.nn.Linear(n_pixels, latent_dim, key=mean_key)
-        self.z_logvar = eqx.nn.Linear(n_pixels, latent_dim, key=logvar_key)
+        self.z_mean = eqx.nn.Linear(n_pixels + 1, latent_dim, key=mean_key)
+        self.z_logvar = eqx.nn.Linear(
+            n_pixels + 1,
+            latent_dim,
+            key=logvar_key,
+        )
         self.bias = jnp.zeros(frame_shape, dtype=jnp.float32)
         self.basis = init_scale * jax.random.normal(
             basis_key,
@@ -142,9 +159,12 @@ class LinearBasisVAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _fraction_normalized_input(x, weight)
-        flat = jnp.ravel(model_input[0])
+        flat = jnp.concatenate(
+            [jnp.ravel(model_input[0]), _frame_feature(frame_coord, x.dtype)],
+        )
         return self.z_mean(flat), self.z_logvar(flat)
 
     def decode(self, z: jax.Array) -> tuple[jax.Array, jax.Array]:
@@ -155,9 +175,10 @@ class LinearBasisVAE(eqx.Module):
         self,
         x: jax.Array,
         key: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        z_mean, z_logvar = self.encode(x, weight)
+        z_mean, z_logvar = self.encode(x, weight, frame_coord)
         eps = jax.random.normal(key, z_mean.shape)
         z = z_mean + jnp.exp(0.5 * z_logvar) * eps
         mean, logvar = self.decode(z)
@@ -166,7 +187,8 @@ class LinearBasisVAE(eqx.Module):
     def predict(
         self,
         x: jax.Array,
-        weight: jax.Array | None = None,
+        weight: jax.Array | None,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        z_mean, _ = self.encode(x, weight)
+        z_mean, _ = self.encode(x, weight, frame_coord)
         return self.decode(z_mean)

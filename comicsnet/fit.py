@@ -91,7 +91,6 @@ def predict_background(
     '''Predict background mean and uncertainty frame-by-frame.'''
 
     data = normalize_cube(cube)
-    use_mask = mask is not None
     if mask is None:
         mask = jnp.zeros_like(data, dtype=bool)
 
@@ -102,10 +101,8 @@ def predict_background(
         x = channel_first(data[frame_index])
         m = channel_first(mask[frame_index])
         w = observed_weight(m)
-        if use_mask:
-            frame_mean, frame_logvar = model.predict(x, w)
-        else:
-            frame_mean, frame_logvar = model.predict(x)
+        frame_coord = normalized_frame_coord(frame_index, data.shape[0])
+        frame_mean, frame_logvar = model.predict(x, w, frame_coord)
         mean = mean.at[frame_index].set(strip_channel(frame_mean))
         frame_logvar = jnp.clip(strip_channel(frame_logvar), -12.0, 8.0)
         frame_uncertainty = jnp.exp(0.5 * frame_logvar)
@@ -143,12 +140,14 @@ def _train_inner_loop(
         x = channel_first(data[frame_index])
         m = channel_first(mask[frame_index])
         w = observed_weight(m)
+        frame_coord = normalized_frame_coord(frame_index, data.shape[0])
         model, opt_state, loss = _train_step(
             model,
             opt_state,
             optimizer,
             x,
             w,
+            frame_coord,
             vae_key,
             config.beta,
         )
@@ -164,10 +163,18 @@ def _train_step(
     optimizer: optax.GradientTransformation,
     x: jax.Array,
     weight: jax.Array,
+    frame_coord: jax.Array,
     key: jax.Array,
     beta: float,
 ) -> tuple[Any, optax.OptState, jax.Array]:
-    loss, grads = eqx.filter_value_and_grad(_loss)(model, x, weight, key, beta)
+    loss, grads = eqx.filter_value_and_grad(_loss)(
+        model,
+        x,
+        weight,
+        frame_coord,
+        key,
+        beta,
+    )
     updates, opt_state = optimizer.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
     return model, opt_state, loss
@@ -177,11 +184,20 @@ def _loss(
     model: Any,
     x: jax.Array,
     weight: jax.Array,
+    frame_coord: jax.Array,
     key: jax.Array,
     beta: float,
 ) -> jax.Array:
-    mean, logvar, z_mean, z_logvar = model(x, key, weight)
+    mean, logvar, z_mean, z_logvar = model(x, key, weight, frame_coord)
     regularization = jnp.asarray(0.0)
     if getattr(model, 'use_kl', True):
         regularization = kl_normal(z_mean, z_logvar)
     return gaussian_nll(x, mean, logvar, weight) + beta * regularization
+
+
+def normalized_frame_coord(frame_index: int, n_frames: int) -> jax.Array:
+    '''Return a normalized frame coordinate in the range [0, 1].'''
+
+    denominator = max(n_frames - 1, 1)
+    value = frame_index / denominator
+    return jnp.asarray(value, dtype=jnp.float32)

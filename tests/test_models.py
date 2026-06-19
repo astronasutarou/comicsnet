@@ -140,10 +140,10 @@ def test_basis_models_accept_mask_augmented_input() -> None:
         key=key,
     )
 
-    assert ae.encode_layer0.weight.shape == (4, 32)
-    assert vae.encode_layer0.weight.shape == (4, 32)
-    assert ae.predict(x, weight)[0].shape == (1, 4, 4)
-    assert vae.predict(x, weight)[0].shape == (1, 4, 4)
+    assert ae.encode_layer0.weight.shape == (4, 33)
+    assert vae.encode_layer0.weight.shape == (4, 33)
+    assert ae.predict(x, weight, jnp.asarray(0.5))[0].shape == (1, 4, 4)
+    assert vae.predict(x, weight, jnp.asarray(0.5))[0].shape == (1, 4, 4)
 
 
 def test_conv_models_accept_mask_augmented_input() -> None:
@@ -162,10 +162,10 @@ def test_conv_models_accept_mask_augmented_input() -> None:
         key=key,
     )
 
-    assert ae.encode_layer0.in_channels == 2
-    assert vae.encode_layer0.in_channels == 2
-    assert ae.predict(x, weight)[0].shape == (1, 4, 4)
-    assert vae.predict(x, weight)[0].shape == (1, 4, 4)
+    assert ae.encode_layer0.in_channels == 3
+    assert vae.encode_layer0.in_channels == 3
+    assert ae.predict(x, weight, jnp.asarray(0.5))[0].shape == (1, 4, 4)
+    assert vae.predict(x, weight, jnp.asarray(0.5))[0].shape == (1, 4, 4)
 
 
 @pytest.mark.parametrize(
@@ -176,7 +176,7 @@ def test_model_predict_minimal(factory, latent_shape, use_kl) -> None:
     del latent_shape
     model = factory()
 
-    mean, logvar = model.predict(FRAME, WEIGHT)
+    mean, logvar = model.predict(FRAME, WEIGHT, jnp.asarray(0.5))
 
     assert model.use_kl is use_kl
     assert mean.shape == FRAME.shape
@@ -197,6 +197,7 @@ def test_model_call_minimal(factory, latent_shape, use_kl) -> None:
         FRAME,
         jax.random.PRNGKey(10),
         WEIGHT,
+        jnp.asarray(0.5),
     )
 
     assert mean.shape == FRAME.shape
@@ -224,10 +225,29 @@ def test_model_encode_requires_explicit_weight(
     with pytest.raises(TypeError):
         model.encode(FRAME)
 
-    z_mean, z_logvar = model.encode(FRAME, None)
+    with pytest.raises(TypeError):
+        model.encode(FRAME, None)
+
+    z_mean, z_logvar = model.encode(FRAME, None, jnp.asarray(0.0))
 
     assert z_mean.shape == latent_shape
     assert z_logvar.shape == latent_shape
+
+
+@pytest.mark.parametrize(
+    'factory, latent_shape, use_kl',
+    MODEL_CASES,
+)
+def test_model_predict_requires_frame_coord(
+    factory,
+    latent_shape,
+    use_kl,
+) -> None:
+    del latent_shape, use_kl
+    model = factory()
+
+    with pytest.raises(TypeError):
+        model.predict(FRAME, WEIGHT)
 
 
 @pytest.mark.parametrize(

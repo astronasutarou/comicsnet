@@ -8,11 +8,17 @@ import jax.numpy as jnp
 import numpy as np
 
 from comicsnet import FitConfig
-from comicsnet.fit import predict_background
+from comicsnet.fit import normalized_frame_coord, predict_background
 
 
 class ConstantLogvarModel:
-    def predict(self, x: jax.Array) -> tuple[jax.Array, jax.Array]:
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array,
+        frame_coord: jax.Array,
+    ) -> tuple[jax.Array, jax.Array]:
+        del weight, frame_coord
         mean = jnp.zeros_like(x)
         logvar = jnp.full_like(x, jnp.log(4.0))
         return mean, logvar
@@ -23,9 +29,29 @@ class WeightEchoModel:
         self,
         x: jax.Array,
         weight: jax.Array,
+        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        del x
+        del x, frame_coord
         return weight, jnp.zeros_like(weight)
+
+
+class FrameCoordEchoModel:
+    def predict(
+        self,
+        x: jax.Array,
+        weight: jax.Array,
+        frame_coord: jax.Array,
+    ) -> tuple[jax.Array, jax.Array]:
+        del weight
+        mean = jnp.ones_like(x) * frame_coord
+        return mean, jnp.zeros_like(x)
+
+
+def test_normalized_frame_coord() -> None:
+    assert float(normalized_frame_coord(0, 3)) == 0.0
+    assert float(normalized_frame_coord(1, 3)) == 0.5
+    assert float(normalized_frame_coord(2, 3)) == 1.0
+    assert float(normalized_frame_coord(0, 1)) == 0.0
 
 
 def test_predict_background_returns_stddev_uncertainty() -> None:
@@ -68,4 +94,26 @@ def test_predict_background_passes_mask_weight() -> None:
     np.testing.assert_array_equal(
         np.asarray(uncertainty),
         np.ones((2, 2, 2), dtype=np.float32),
+    )
+
+
+def test_predict_background_passes_frame_coord() -> None:
+    cube = jnp.ones((3, 2, 2), dtype=jnp.float32)
+
+    background, uncertainty = predict_background(
+        FrameCoordEchoModel(),
+        cube,
+        FitConfig(),
+    )
+
+    expected = jnp.zeros_like(cube)
+    expected = expected.at[1].set(0.5)
+    expected = expected.at[2].set(1.0)
+    np.testing.assert_array_equal(
+        np.asarray(background),
+        np.asarray(expected),
+    )
+    np.testing.assert_array_equal(
+        np.asarray(uncertainty),
+        np.ones((3, 2, 2), dtype=np.float32),
     )
