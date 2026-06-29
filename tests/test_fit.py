@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from comicsnet import FitConfig, LinearBasisAE, fit
+from comicsnet import Config, LinearBasisAE, fit
 from comicsnet.fit import normalized_frame_coord, predict_background
 
 
@@ -60,7 +60,7 @@ def test_predict_background_returns_stddev_uncertainty() -> None:
     background, uncertainty = predict_background(
         ConstantLogvarModel(),
         cube,
-        FitConfig(),
+        Config(),
     )
 
     np.testing.assert_array_equal(
@@ -81,7 +81,7 @@ def test_predict_background_converts_mask_to_weight() -> None:
     background, uncertainty = predict_background(
         WeightEchoModel(),
         cube,
-        FitConfig(),
+        Config(),
         mask=mask,
     )
 
@@ -105,7 +105,7 @@ def test_predict_background_rejects_mask_shape_mismatch() -> None:
         predict_background(
             WeightEchoModel(),
             cube,
-            FitConfig(),
+            Config(),
             mask=mask,
         )
     except ValueError as error:
@@ -120,7 +120,7 @@ def test_predict_background_passes_frame_coord() -> None:
     background, uncertainty = predict_background(
         FrameCoordEchoModel(),
         cube,
-        FitConfig(),
+        Config(),
     )
 
     expected = jnp.zeros_like(cube)
@@ -145,7 +145,7 @@ def test_fit_uses_initial_mask_without_forced_mask_update() -> None:
         latent_dim=1,
         key=jax.random.PRNGKey(0),
     )
-    config = FitConfig(
+    config = Config(
         outer_steps=1,
         inner_steps=1,
         erosion_size=1,

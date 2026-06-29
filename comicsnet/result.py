@@ -9,7 +9,7 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 
-from .config import FitConfig
+from .config import Config
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,7 @@ class FitResult:
     uncertainty: jax.Array
     mask: jax.Array
     model: Any
-    config: FitConfig
+    config: Config
     losses: tuple[float, ...]
 
     @property

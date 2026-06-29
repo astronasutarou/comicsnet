@@ -6,7 +6,7 @@ from __future__ import annotations
 import jax.numpy as jnp
 import numpy as np
 
-from comicsnet.config import FitConfig
+from comicsnet.config import Config
 from comicsnet.result import FitResult, make_sparse
 
 
@@ -28,7 +28,7 @@ def test_fit_result_stores_outputs() -> None:
     background = jnp.zeros((2, 3, 4))
     uncertainty = jnp.ones((2, 3, 4))
     mask = jnp.zeros((2, 3, 4), dtype=bool)
-    config = FitConfig(outer_steps=1)
+    config = Config(outer_steps=1)
 
     result = FitResult(
         data=data,

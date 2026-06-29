@@ -8,11 +8,11 @@ from dataclasses import fields
 
 import pytest
 
-from comicsnet.config import FitConfig
+from comicsnet.config import Config
 
 
 def test_defaults() -> None:
-    config = FitConfig()
+    config = Config()
 
     assert config.outer_steps == 10
     assert config.inner_steps == 100
@@ -28,7 +28,7 @@ def test_defaults() -> None:
 
 
 def test_overrides() -> None:
-    config = FitConfig(
+    config = Config(
         outer_steps=2,
         inner_steps=3,
         learning_rate=2.0e-3,
@@ -56,14 +56,14 @@ def test_overrides() -> None:
 
 
 def test_frozen() -> None:
-    config = FitConfig()
+    config = Config()
 
     with pytest.raises(FrozenInstanceError):
         config.outer_steps = 10
 
 
 def test_model_parameters_are_not_fit_config_fields() -> None:
-    names = {field.name for field in fields(FitConfig)}
+    names = {field.name for field in fields(Config)}
 
     assert 'hidden_channels' not in names
     assert 'latent_channels' not in names
@@ -72,9 +72,9 @@ def test_model_parameters_are_not_fit_config_fields() -> None:
 
 def test_model_parameters_are_rejected() -> None:
     with pytest.raises(TypeError):
-        FitConfig(hidden_channels=8)
+        Config(hidden_channels=8)
 
 
 def test_old_update_mask_parameter_is_rejected() -> None:
     with pytest.raises(TypeError):
-        FitConfig(update_mask_each_outer_step=False)
+        Config(update_mask_each_outer_step=False)

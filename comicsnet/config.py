@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class FitConfig:
+class Config:
     '''Configuration for the background/sparse decomposition loop.'''
 
     outer_steps: int = 10
