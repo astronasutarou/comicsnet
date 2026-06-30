@@ -37,10 +37,10 @@ def fit(
     key = jax.random.PRNGKey(config.seed)
 
     optimizer = _make_optimizer(config)
+    opt_state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
     losses: list[float] = []
 
     for outer_step in range(config.outer_steps):
-        opt_state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
         model, opt_state, key, step_losses = _train_inner_loop(
             model,
             opt_state,
@@ -228,7 +228,10 @@ def _loss(
     return gaussian_nll(x, mean, logvar, weight) + beta * regularization
 
 
-def normalized_frame_coord(frame_index: int, n_frames: int) -> jax.Array:
+def normalized_frame_coord(
+    frame_index: int,
+    n_frames: int
+) -> jax.Array:
     '''Return a normalized frame coordinate in the range [0, 1].'''
 
     denominator = max(n_frames - 1, 1)
