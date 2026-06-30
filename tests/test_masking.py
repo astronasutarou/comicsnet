@@ -20,7 +20,7 @@ from comicsnet.masking import (
 def test_robust_scale_uses_mad() -> None:
     values = jnp.asarray([0.0, 0.0, 1.0, 2.0, 100.0])
 
-    scale = robust_scale(values, min_scale=1.0e-6)
+    scale = robust_scale(values, min_scale=1.0e-6, keepdims=False)
 
     assert float(scale) == pytest.approx(1.4826)
 
@@ -28,13 +28,13 @@ def test_robust_scale_uses_mad() -> None:
 def test_robust_scale_respects_min_scale() -> None:
     values = jnp.ones((4,))
 
-    scale = robust_scale(values, min_scale=2.0)
+    scale = robust_scale(values, min_scale=2.0, keepdims=False)
 
     assert float(scale) == pytest.approx(2.0)
 
 
 def test_update_sparse_mask_thresholds_residuals() -> None:
-    cube = jnp.asarray([0.0, 0.0, 0.0, 10.0])
+    cube = jnp.asarray([0.0, 0.0, 0.0, 10.0])[None, None, :]
     background = jnp.zeros_like(cube)
 
     mask = update_sparse_mask(
@@ -49,7 +49,7 @@ def test_update_sparse_mask_thresholds_residuals() -> None:
 
     np.testing.assert_array_equal(
         np.asarray(mask),
-        np.asarray([False, False, False, True]),
+        np.asarray([[[False, False, False, True]]]),
     )
 
 

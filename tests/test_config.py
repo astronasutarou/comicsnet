@@ -17,7 +17,7 @@ def test_defaults() -> None:
     assert config.outer_steps == 10
     assert config.inner_steps == 100
     assert config.erosion_size == 3
-    assert config.dilation_size == 7
+    assert config.dilation_size == 3
     assert config.mask_fraction_limit == 0.2
     assert config.learning_rate == 1.0e-4
     assert config.global_norm is None

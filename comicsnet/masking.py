@@ -12,12 +12,14 @@ import jax.numpy as jnp
 def robust_scale(
     x: jax.Array,
     min_scale: float,
-    axis: int | tuple[int, ...] | None = None
+    axis: int | tuple[int, ...] | None = None,
+    *,
+    keepdims: bool = True
 ) -> jax.Array:
     '''Estimate a robust residual scale with the median absolute deviation.'''
 
-    median = jnp.median(x, axis=axis, keepdims=True)
-    mad = jnp.median(jnp.abs(x - median), axis=axis, keepdims=True)
+    median = jnp.median(x, axis=axis, keepdims=keepdims)
+    mad = jnp.median(jnp.abs(x - median), axis=axis, keepdims=keepdims)
     return jnp.maximum(1.4826 * mad, min_scale)
 
 
