@@ -9,11 +9,15 @@ import jax
 import jax.numpy as jnp
 
 
-def robust_scale(x: jax.Array, min_scale: float) -> jax.Array:
+def robust_scale(
+    x: jax.Array,
+    min_scale: float,
+    axis: int | tuple[int, ...] | None = None
+) -> jax.Array:
     '''Estimate a robust residual scale with the median absolute deviation.'''
 
-    median = jnp.median(x)
-    mad = jnp.median(jnp.abs(x - median))
+    median = jnp.median(x, axis=axis, keepdims=True)
+    mad = jnp.median(jnp.abs(x - median), axis=axis, keepdims=True)
     return jnp.maximum(1.4826 * mad, min_scale)
 
 
@@ -31,7 +35,8 @@ def update_sparse_mask(
     '''Update the sparse-signal mask from standardized residuals.'''
 
     residual = cube - background
-    scale = robust_scale(residual, min_scale)
+    residual -= jnp.mean(residual, axis=(1, 2), keepdims=True)
+    scale = robust_scale(residual, min_scale, axis=(1, 2))
     mask = modifier(residual) > threshold_sigma * scale
     mask = binary_opening(mask, erosion_size, dilation_size)
     return limit_mask_fraction(mask, mask_fraction_limit)
