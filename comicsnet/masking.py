@@ -14,7 +14,7 @@ def robust_scale(
     min_scale: float,
     axis: int | tuple[int, ...] | None = None,
     *,
-    keepdims: bool = True
+    keepdims: bool = False
 ) -> jax.Array:
     '''Estimate a robust residual scale with the median absolute deviation.'''
 
@@ -38,7 +38,7 @@ def update_sparse_mask(
 
     residual = cube - background
     residual -= jnp.mean(residual, axis=(1, 2), keepdims=True)
-    scale = robust_scale(residual, min_scale, axis=(1, 2))
+    scale = robust_scale(residual, min_scale, axis=(1, 2), keepdims=True)
     mask = modifier(residual) > threshold_sigma * scale
     mask = binary_opening(mask, erosion_size, dilation_size)
     return limit_mask_fraction(mask, mask_fraction_limit)
