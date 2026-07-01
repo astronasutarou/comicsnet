@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from .config import FitConfig
+from .config import Config
 from .fit import fit, predict_background
 from .model import (
     BasisAE,
@@ -15,7 +15,7 @@ from .model import (
 from .result import FitResult
 
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 
 __all__ = [
@@ -23,7 +23,7 @@ __all__ = [
     'BasisVAE',
     'ConvAE',
     'ConvVAE',
-    'FitConfig',
+    'Config',
     'FitResult',
     'LinearBasisAE',
     'LinearBasisVAE',

@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 import optax
 
-from .config import FitConfig
+from .config import Config
 from .losses import gaussian_nll, kl_normal
 from .masking import observed_weight, robust_scale, update_sparse_mask
 from .result import FitResult
@@ -22,13 +22,13 @@ def fit(
     model: Any,
     cube: jax.Array,
     *,
-    config: FitConfig | None = None,
+    config: Config | None = None,
     mask: jax.Array | None = None,
 ) -> FitResult:
     '''Fit a background model and sparse residual mask.'''
 
     if config is None:
-        config = FitConfig()
+        config = Config()
 
     raw_data = normalize_cube(cube)
     data, data_offset, data_scale = _standardize(raw_data, config)
@@ -91,7 +91,7 @@ def fit(
 def predict_background(
     model: Any,
     cube: jax.Array,
-    config: FitConfig,
+    config: Config,
     mask: jax.Array | None = None,
 ) -> tuple[jax.Array, jax.Array]:
     '''Predict background mean and uncertainty frame-by-frame.'''
@@ -118,7 +118,7 @@ def predict_background(
 
 def _standardize(
     data: jax.Array,
-    config: FitConfig,
+    config: Config,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
     if not config.standardize:
         return data, jnp.asarray(0.0), jnp.asarray(1.0)
@@ -142,7 +142,7 @@ def _normalize_mask(
     return mask
 
 
-def _make_optimizer(config: FitConfig) -> optax.GradientTransformation:
+def _make_optimizer(config: Config) -> optax.GradientTransformation:
     optimizer = optax.adam(
         config.learning_rate,
         b1=config.adam_b1,
@@ -164,7 +164,7 @@ def _train_inner_loop(
     data: jax.Array,
     weight: jax.Array,
     key: jax.Array,
-    config: FitConfig,
+    config: Config,
 ) -> tuple[Any, optax.OptState, jax.Array, tuple[float, ...]]:
     losses: list[float] = []
 
@@ -228,7 +228,10 @@ def _loss(
     return gaussian_nll(x, mean, logvar, weight) + beta * regularization
 
 
-def normalized_frame_coord(frame_index: int, n_frames: int) -> jax.Array:
+def normalized_frame_coord(
+    frame_index: int,
+    n_frames: int
+) -> jax.Array:
     '''Return a normalized frame coordinate in the range [0, 1].'''
 
     denominator = max(n_frames - 1, 1)

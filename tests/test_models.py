@@ -13,7 +13,7 @@ from comicsnet import (
     BasisVAE,
     ConvAE,
     ConvVAE,
-    FitConfig,
+    Config,
     LinearBasisAE,
     LinearBasisVAE,
     fit,
@@ -81,8 +81,8 @@ def _basis_vae():
 
 
 MODEL_CASES = [
-    pytest.param(_conv_ae, (1, *FRAME_SHAPE), False, id='conv_ae'),
-    pytest.param(_conv_vae, (1, *FRAME_SHAPE), True, id='conv_vae'),
+    pytest.param(_conv_ae, (1, 1, 1), False, id='conv_ae'),
+    pytest.param(_conv_vae, (1, 1, 1), True, id='conv_vae'),
     pytest.param(_linear_basis_ae, (3,), False, id='linear_basis_ae'),
     pytest.param(_linear_basis_vae, (3,), True, id='linear_basis_vae'),
     pytest.param(_basis_ae, (2,), False, id='basis_ae'),
@@ -257,7 +257,7 @@ def test_model_predict_requires_frame_coord(
 def test_model_fit_minimal(factory, latent_shape, use_kl) -> None:
     del latent_shape, use_kl
     model = factory()
-    config = FitConfig(
+    config = Config(
         outer_steps=1,
         inner_steps=1,
         global_norm=1.0,

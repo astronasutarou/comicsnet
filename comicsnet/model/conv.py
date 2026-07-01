@@ -26,8 +26,26 @@ def _mask_augmented_input(
     return jnp.concatenate([x * weight, weight, frame_plane], axis=0)
 
 
+def _mean_pooling_2x2(x: jax.Array) -> jax.Array:
+    channels, height, width = x.shape
+    return jax.image.resize(
+        x,
+        (channels, height // 2, width // 2),
+        method='area',
+    )
+
+
+def _bilinear_upsample_2x2(x: jax.Array) -> jax.Array:
+    channels, height, width = x.shape
+    return jax.image.resize(
+        x,
+        (channels, 2 * height, 2 * width),
+        method='bilinear',
+    )
+
+
 class ConvAE(eqx.Module):
-    '''Small fully convolutional AE for full-frame background modelling.'''
+    '''Pooling convolutional AE for full-frame background modelling.'''
 
     encode_layer0: eqx.nn.Conv
     encode_layer1: eqx.nn.Conv
@@ -119,13 +137,17 @@ class ConvAE(eqx.Module):
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _mask_augmented_input(x, weight, frame_coord)
         h = jnn.gelu(self.encode_layer0(model_input))
+        h = _mean_pooling_2x2(h)
         h = jnn.gelu(self.encode_layer1(h))
+        h = _mean_pooling_2x2(h)
         z = self.z_layer(h)
         z_logvar = jnp.zeros_like(z)
         return z, z_logvar
 
     def decode(self, z: jax.Array) -> tuple[jax.Array, jax.Array]:
-        h = jnn.gelu(self.decode_layer0(z))
+        h = _bilinear_upsample_2x2(z)
+        h = jnn.gelu(self.decode_layer0(h))
+        h = _bilinear_upsample_2x2(h)
         h = jnn.gelu(self.decode_layer1(h))
         return self.out_mean(h), self.out_logvar(h)
 
@@ -153,7 +175,7 @@ class ConvAE(eqx.Module):
 
 
 class ConvVAE(eqx.Module):
-    '''Small fully convolutional VAE for full-frame background modelling.
+    '''Pooling convolutional VAE for full-frame background modelling.
 
     Inputs and outputs use channel-first shape ``(1, y, x)``.  Each training
     step sees one complete detector frame, not a spatial patch.
@@ -259,11 +281,15 @@ class ConvVAE(eqx.Module):
     ) -> tuple[jax.Array, jax.Array]:
         model_input = _mask_augmented_input(x, weight, frame_coord)
         h = jnn.gelu(self.encode_layer0(model_input))
+        h = _mean_pooling_2x2(h)
         h = jnn.gelu(self.encode_layer1(h))
+        h = _mean_pooling_2x2(h)
         return self.z_mean(h), self.z_logvar(h)
 
     def decode(self, z: jax.Array) -> tuple[jax.Array, jax.Array]:
-        h = jnn.gelu(self.decode_layer0(z))
+        h = _bilinear_upsample_2x2(z)
+        h = jnn.gelu(self.decode_layer0(h))
+        h = _bilinear_upsample_2x2(h)
         h = jnn.gelu(self.decode_layer1(h))
         return self.out_mean(h), self.out_logvar(h)
 
