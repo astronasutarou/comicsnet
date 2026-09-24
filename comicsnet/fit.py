@@ -107,8 +107,7 @@ def predict_background(
     for frame_index in range(data.shape[0]):
         x = channel_first(data[frame_index])
         w = channel_first(weight[frame_index])
-        frame_coord = normalized_frame_coord(frame_index, data.shape[0])
-        frame_mean, frame_logvar = model.predict(x, w, frame_coord)
+        frame_mean, frame_logvar = model.predict(x, w)
         mean = mean.at[frame_index].set(strip_channel(frame_mean))
         frame_logvar = jnp.clip(strip_channel(frame_logvar), -12.0, 8.0)
         frame_uncertainty = jnp.exp(0.5 * frame_logvar)
@@ -174,14 +173,12 @@ def _train_inner_loop(
         frame_index = sample_frame_index(frame_key, data.shape[0])
         x = channel_first(data[frame_index])
         w = channel_first(weight[frame_index])
-        frame_coord = normalized_frame_coord(frame_index, data.shape[0])
         model, opt_state, loss = _train_step(
             model,
             opt_state,
             optimizer,
             x,
             w,
-            frame_coord,
             vae_key,
             config.beta,
         )
@@ -197,7 +194,6 @@ def _train_step(
     optimizer: optax.GradientTransformation,
     x: jax.Array,
     weight: jax.Array,
-    frame_coord: jax.Array,
     key: jax.Array,
     beta: float,
 ) -> tuple[Any, optax.OptState, jax.Array]:
@@ -205,7 +201,6 @@ def _train_step(
         model,
         x,
         weight,
-        frame_coord,
         key,
         beta,
     )
@@ -218,20 +213,11 @@ def _loss(
     model: Any,
     x: jax.Array,
     weight: jax.Array,
-    frame_coord: jax.Array,
     key: jax.Array,
     beta: float,
 ) -> jax.Array:
-    mean, logvar, z_mean, z_logvar = model(x, key, weight, frame_coord)
+    mean, logvar, z_mean, z_logvar = model(x, key, weight)
     regularization = jnp.asarray(0.0)
     if getattr(model, 'use_kl', True):
         regularization = kl_normal(z_mean, z_logvar)
     return gaussian_nll(x, mean, logvar, weight) + beta * regularization
-
-
-def normalized_frame_coord(frame_index: int, n_frames: int) -> jax.Array:
-    """Return a normalized frame coordinate in the range [0, 1]."""
-
-    denominator = max(n_frames - 1, 1)
-    value = frame_index / denominator
-    return jnp.asarray(value, dtype=jnp.float32)

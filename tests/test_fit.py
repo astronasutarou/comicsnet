@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from comicsnet import Config, LinearBasisAE, fit
-from comicsnet.fit import normalized_frame_coord, predict_background
+from comicsnet.fit import predict_background
 
 
 class ConstantLogvarModel:
@@ -16,9 +16,8 @@ class ConstantLogvarModel:
         self,
         x: jax.Array,
         weight: jax.Array,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        del weight, frame_coord
+        del weight
         mean = jnp.zeros_like(x)
         logvar = jnp.full_like(x, jnp.log(4.0))
         return mean, logvar
@@ -29,29 +28,19 @@ class WeightEchoModel:
         self,
         x: jax.Array,
         weight: jax.Array,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        del x, frame_coord
+        del x
         return weight, jnp.zeros_like(weight)
 
 
-class FrameCoordEchoModel:
+class FrameEchoModel:
     def predict(
         self,
         x: jax.Array,
         weight: jax.Array,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
         del weight
-        mean = jnp.ones_like(x) * frame_coord
-        return mean, jnp.zeros_like(x)
-
-
-def test_normalized_frame_coord() -> None:
-    assert float(normalized_frame_coord(0, 3)) == 0.0
-    assert float(normalized_frame_coord(1, 3)) == 0.5
-    assert float(normalized_frame_coord(2, 3)) == 1.0
-    assert float(normalized_frame_coord(0, 1)) == 0.0
+        return x, jnp.zeros_like(x)
 
 
 def test_predict_background_returns_stddev_uncertainty() -> None:
@@ -114,21 +103,18 @@ def test_predict_background_rejects_mask_shape_mismatch() -> None:
         raise AssertionError('ValueError was not raised')
 
 
-def test_predict_background_passes_frame_coord() -> None:
-    cube = jnp.ones((3, 2, 2), dtype=jnp.float32)
+def test_predict_background_passes_full_frame() -> None:
+    cube = jnp.arange(12, dtype=jnp.float32).reshape(3, 2, 2)
 
     background, uncertainty = predict_background(
-        FrameCoordEchoModel(),
+        FrameEchoModel(),
         cube,
         Config(),
     )
 
-    expected = jnp.zeros_like(cube)
-    expected = expected.at[1].set(0.5)
-    expected = expected.at[2].set(1.0)
     np.testing.assert_array_equal(
         np.asarray(background),
-        np.asarray(expected),
+        np.asarray(cube),
     )
     np.testing.assert_array_equal(
         np.asarray(uncertainty),
