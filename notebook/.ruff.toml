@@ -1,0 +1,13 @@
+indent-width = 2
+
+[lint]
+select = ['E', 'W', 'F']
+
+ignore =[
+  'E731',
+]
+
+[format]
+quote-style = 'single'
+line-ending = 'lf'
+preview = true

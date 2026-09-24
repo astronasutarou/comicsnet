@@ -47,3 +47,15 @@ include = ["comicsnet*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "comicsnet.__version__" }
+
+[tool.ruff]
+line-length = 79
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "D400"]
+
+[tool.ruff.format]
+quote-style ='single'
+line-ending = 'lf'
+preview = true
