@@ -20,6 +20,9 @@ from comicsnet import (
 )
 from comicsnet.fit import predict_background
 from comicsnet.model.basis import _mask_augmented_input
+from comicsnet.model.conv import (
+    _mask_augmented_input as _conv_augmented_input,
+)
 from comicsnet.model.linear_basis import _fraction_normalized_input
 
 
@@ -121,6 +124,58 @@ def test_mask_augmented_input_appends_weight_channel() -> None:
     )
 
 
+@pytest.mark.parametrize('use_weight', [True, False])
+@pytest.mark.parametrize('max_frequency', [0, 1, 3])
+def test_conv_augmented_input_appends_spatial_coordinates(
+    use_weight, max_frequency,
+) -> None:
+    x = jnp.arange(15, dtype=jnp.float32).reshape(1, 3, 5)
+    weight = jnp.ones_like(x).at[:, 1, 2].set(0.0)
+    weight = weight.at[:, 2, 4].set(0.5) if use_weight else None
+
+    actual = jax.jit(_conv_augmented_input, static_argnums=2)(
+        x, weight, max_frequency,
+    )
+
+    expected_weight = np.ones_like(x) if weight is None else np.asarray(weight)
+    assert actual.shape == (4 + 2 * max_frequency, 3, 5)
+    assert actual.dtype == x.dtype
+    np.testing.assert_array_equal(actual[0], (x * expected_weight)[0])
+    np.testing.assert_array_equal(actual[1], expected_weight[0])
+    np.testing.assert_allclose(
+        actual[2], np.tile([0.0, 0.25, 0.5, 0.75, 1.0], (3, 1)),
+    )
+    np.testing.assert_allclose(
+        actual[3], np.tile([[0.0], [0.5], [1.0]], (1, 5)),
+    )
+    for n in range(1, max_frequency + 1):
+        expected_x = np.cos(2 * np.pi * n * np.linspace(0, 1, 5))
+        expected_y = np.cos(2 * np.pi * n * np.linspace(0, 1, 3))
+        np.testing.assert_allclose(
+            actual[2 + 2 * n], np.tile(expected_x, (3, 1)), atol=1.0e-6,
+        )
+        np.testing.assert_allclose(
+            actual[3 + 2 * n], np.tile(expected_y[:, None], (1, 5)),
+            atol=1.0e-6,
+        )
+
+
+@pytest.mark.parametrize('shape', [(1, 1), (1, 3), (3, 1)])
+def test_conv_augmented_input_singleton_axis(shape) -> None:
+    x = jnp.ones((1, *shape), dtype=jnp.float32)
+
+    actual = _conv_augmented_input(x, None)
+
+    assert actual.shape == (12, *shape)
+    assert bool(jnp.isfinite(actual).all())
+    if shape[1] == 1:
+        np.testing.assert_array_equal(actual[2], np.zeros(shape))
+        np.testing.assert_array_equal(actual[4::2], np.ones((4, *shape)))
+    if shape[0] == 1:
+        np.testing.assert_array_equal(actual[3], np.zeros(shape))
+        np.testing.assert_array_equal(actual[5::2], np.ones((4, *shape)))
+
+
 def test_basis_models_accept_mask_augmented_input() -> None:
     key = jax.random.PRNGKey(0)
     x = jnp.ones((1, 4, 4), dtype=jnp.float32)
@@ -163,10 +218,49 @@ def test_conv_models_accept_mask_augmented_input() -> None:
         key=key,
     )
 
-    assert ae.encode_layer0.in_channels == 2
-    assert vae.encode_layer0.in_channels == 2
+    assert ae.coordinate_max_frequency == 4
+    assert vae.coordinate_max_frequency == 4
+    assert ae.encode_layer0.in_channels == 12
+    assert vae.encode_layer0.in_channels == 12
     assert ae.predict(x, weight)[0].shape == (1, 4, 4)
     assert vae.predict(x, weight)[0].shape == (1, 4, 4)
+
+
+@pytest.mark.parametrize('model_type', [ConvAE, ConvVAE])
+@pytest.mark.parametrize('max_frequency', [0, 2])
+def test_conv_models_custom_coordinate_frequency(
+    model_type, max_frequency,
+) -> None:
+    model = model_type(
+        hidden_channels=2,
+        latent_channels=1,
+        coordinate_max_frequency=max_frequency,
+        key=jax.random.PRNGKey(0),
+    )
+
+    mean, logvar = model.predict(FRAME, WEIGHT)
+
+    assert model.encode_layer0.in_channels == 4 + 2 * max_frequency
+    assert mean.shape == FRAME.shape
+    assert logvar.shape == FRAME.shape
+    assert bool(jnp.isfinite(mean).all())
+    assert bool(jnp.isfinite(logvar).all())
+
+
+@pytest.mark.parametrize('model_type', [ConvAE, ConvVAE])
+@pytest.mark.parametrize(
+    'frequency, error', [(-1, ValueError), (1.5, TypeError)],
+)
+def test_conv_models_reject_invalid_coordinate_frequency(
+    model_type, frequency, error,
+) -> None:
+    with pytest.raises(error):
+        model_type(
+            hidden_channels=2,
+            latent_channels=1,
+            coordinate_max_frequency=frequency,
+            key=jax.random.PRNGKey(0),
+        )
 
 
 @pytest.mark.parametrize(

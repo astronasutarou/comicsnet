@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+""" Models of comicsnet."""
 
 from __future__ import annotations
 
