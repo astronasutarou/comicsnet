@@ -15,7 +15,7 @@ from .config import Config
 from .losses import gaussian_nll, kl_normal
 from .masking import observed_weight, robust_scale, update_sparse_mask
 from .result import FitResult
-from .frames import channel_first, normalize_cube, sample_frame_index
+from .frames import channel_first, prepare_cube, sample_frame_index
 from .frames import strip_channel
 
 
@@ -31,9 +31,9 @@ def fit(
     if config is None:
         config = Config()
 
-    raw_data = normalize_cube(cube)
+    raw_data = prepare_cube(cube)
     data, data_offset, data_scale = _standardize(raw_data, config)
-    mask = _normalize_mask(mask, data)
+    mask = _prepare_mask(mask, data)
     weight = observed_weight(mask)
     key = jax.random.PRNGKey(config.seed)
 
@@ -97,8 +97,8 @@ def predict_background(
 ) -> tuple[jax.Array, jax.Array]:
     """Predict background mean and uncertainty frame-by-frame."""
 
-    data = normalize_cube(cube)
-    mask = _normalize_mask(mask, data)
+    data = prepare_cube(cube)
+    mask = _prepare_mask(mask, data)
     weight = observed_weight(mask)
 
     mean = jnp.zeros_like(data)
@@ -129,7 +129,7 @@ def _standardize(
     return (data - offset) / scale, offset, scale
 
 
-def _normalize_mask(
+def _prepare_mask(
     mask: jax.Array | None,
     data: jax.Array,
 ) -> jax.Array:

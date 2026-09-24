@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 
 
-def normalize_cube(cube: jax.Array) -> jax.Array:
+def prepare_cube(cube: jax.Array) -> jax.Array:
     """Convert input data to a floating point ``(time, y, x)`` array."""
 
     array = jnp.asarray(cube, dtype=jnp.float32)

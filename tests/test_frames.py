@@ -10,22 +10,22 @@ import pytest
 
 from comicsnet.frames import (
     channel_first,
-    normalize_cube,
+    prepare_cube,
     sample_frame_index,
     strip_channel,
 )
 
 
-def test_normalize_cube_returns_float32_3d_array() -> None:
-    cube = normalize_cube(np.zeros((2, 3, 4), dtype=np.int16))
+def test_prepare_cube_returns_float32_3d_array() -> None:
+    cube = prepare_cube(np.zeros((2, 3, 4), dtype=np.int16))
 
     assert cube.shape == (2, 3, 4)
     assert cube.dtype == jnp.float32
 
 
-def test_normalize_cube_rejects_non_3d_input() -> None:
+def test_prepare_cube_rejects_non_3d_input() -> None:
     with pytest.raises(ValueError, match='cube must have shape'):
-        normalize_cube(jnp.zeros((3, 4)))
+        prepare_cube(jnp.zeros((3, 4)))
 
 
 def test_channel_first_and_strip_channel() -> None:
@@ -50,4 +50,3 @@ def test_sample_frame_index_is_in_range() -> None:
 
     assert index >= 0
     assert index < 5
-
