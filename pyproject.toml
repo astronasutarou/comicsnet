@@ -53,9 +53,9 @@ line-length = 79
 indent-width = 4
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "D400"]
+select = ["E", "F", "W", "I002", "D400"]
 
 [tool.ruff.format]
-quote-style ='single'
-line-ending = 'lf'
+quote-style = "single"
+line-ending = "lf"
 preview = true

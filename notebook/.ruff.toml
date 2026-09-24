@@ -1,13 +1,13 @@
 indent-width = 2
 
 [lint]
-select = ['E', 'W', 'F']
+select = ["E", "W", "F", "I002"]
 
 ignore =[
-  'E731',
+  "E731",
 ]
 
 [format]
-quote-style = 'single'
-line-ending = 'lf'
+quote-style = "single"
+line-ending = "lf"
 preview = true
