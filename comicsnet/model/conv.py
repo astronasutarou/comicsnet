@@ -45,7 +45,7 @@ def _bilinear_upsample_2x2(x: jax.Array) -> jax.Array:
 
 
 class ConvAE(eqx.Module):
-    '''Pooling convolutional AE for full-frame background modelling.'''
+    """Pooling convolutional AE for full-frame background modelling."""
 
     encode_layer0: eqx.nn.Conv
     encode_layer1: eqx.nn.Conv
@@ -175,11 +175,11 @@ class ConvAE(eqx.Module):
 
 
 class ConvVAE(eqx.Module):
-    '''Pooling convolutional VAE for full-frame background modelling.
+    """Pooling convolutional VAE for full-frame background modelling.
 
     Inputs and outputs use channel-first shape ``(1, y, x)``.  Each training
     step sees one complete detector frame, not a spatial patch.
-    '''
+    """
 
     encode_layer0: eqx.nn.Conv
     encode_layer1: eqx.nn.Conv

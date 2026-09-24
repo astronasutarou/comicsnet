@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""Masking utilities for comicsnet."""
 
 from __future__ import annotations
 
@@ -14,9 +15,9 @@ def robust_scale(
     min_scale: float,
     axis: int | tuple[int, ...] | None = None,
     *,
-    keepdims: bool = False
+    keepdims: bool = False,
 ) -> jax.Array:
-    '''Estimate a robust residual scale with the median absolute deviation.'''
+    """Estimate a robust residual scale with the median absolute deviation."""
 
     median = jnp.median(x, axis=axis, keepdims=keepdims)
     mad = jnp.median(jnp.abs(x - median), axis=axis, keepdims=keepdims)
@@ -34,7 +35,7 @@ def update_sparse_mask(
     mask_fraction_limit: float,
     modifier: Callable = lambda x: x,
 ) -> jax.Array:
-    '''Update the sparse-signal mask from standardized residuals.'''
+    """Update the sparse-signal mask from standardized residuals."""
 
     residual = cube - background
     residual -= jnp.mean(residual, axis=(1, 2), keepdims=True)
@@ -48,7 +49,7 @@ def limit_mask_fraction(
     mask: jax.Array,
     mask_fraction_limit: float,
 ) -> jax.Array:
-    '''Clear frames whose mask fraction exceeds a limit.'''
+    """Clear frames whose mask fraction exceeds a limit."""
 
     if mask_fraction_limit >= 1.0:
         return mask
@@ -67,11 +68,11 @@ def binary_opening(
     erosion_size: int,
     dilation_size: int,
 ) -> jax.Array:
-    '''Apply spatial circular binary opening to a mask.
+    """Apply spatial circular binary opening to a mask.
 
     For movie masks, opening is applied only over the final two spatial axes.
     The time axis is not connected by the morphology operation.
-    '''
+    """
 
     if mask.ndim == 0:
         return mask
@@ -90,7 +91,7 @@ def binary_opening(
 
 
 def circular_kernel(opening_size: int) -> jax.Array:
-    '''Return a discretized circular 2D kernel.'''
+    """Return a discretized circular 2D kernel."""
 
     if opening_size <= 1:
         return jnp.ones((1, 1), dtype=bool)
@@ -99,7 +100,7 @@ def circular_kernel(opening_size: int) -> jax.Array:
     radius = (opening_size - 1) / 2.0
     y, x = jnp.ogrid[:opening_size, :opening_size]
     distance2 = (y - center) ** 2 + (x - center) ** 2
-    return distance2 <= radius ** 2
+    return distance2 <= radius**2
 
 
 def _binary_erosion(values: jax.Array, kernel: jax.Array) -> jax.Array:
@@ -140,6 +141,6 @@ def _spatial_convolve_2d(values: jax.Array, kernel: jax.Array) -> jax.Array:
 
 
 def observed_weight(mask: jax.Array) -> jax.Array:
-    '''Return weights for pixels used to fit the background.'''
+    """Return weights for pixels used to fit the background."""
 
     return 1.0 - mask.astype(jnp.float32)

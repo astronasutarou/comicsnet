@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+"""COMICSNET: A library for background models in image sequences."""
 
 from .config import Config
 from .fit import fit, predict_background

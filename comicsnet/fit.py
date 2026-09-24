@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""Fitting functions for comicsnet."""
 
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ def fit(
     config: Config | None = None,
     mask: jax.Array | None = None,
 ) -> FitResult:
-    '''Fit a background model and sparse residual mask.'''
+    """Fit a background model and sparse residual mask."""
 
     if config is None:
         config = Config()
@@ -94,7 +95,7 @@ def predict_background(
     config: Config,
     mask: jax.Array | None = None,
 ) -> tuple[jax.Array, jax.Array]:
-    '''Predict background mean and uncertainty frame-by-frame.'''
+    """Predict background mean and uncertainty frame-by-frame."""
 
     data = normalize_cube(cube)
     mask = _normalize_mask(mask, data)
@@ -228,11 +229,8 @@ def _loss(
     return gaussian_nll(x, mean, logvar, weight) + beta * regularization
 
 
-def normalized_frame_coord(
-    frame_index: int,
-    n_frames: int
-) -> jax.Array:
-    '''Return a normalized frame coordinate in the range [0, 1].'''
+def normalized_frame_coord(frame_index: int, n_frames: int) -> jax.Array:
+    """Return a normalized frame coordinate in the range [0, 1]."""
 
     denominator = max(n_frames - 1, 1)
     value = frame_index / denominator

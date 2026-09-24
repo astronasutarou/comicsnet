@@ -32,12 +32,12 @@ def _frame_feature(
 
 
 class LinearBasisAE(eqx.Module):
-    '''Linear basis autoencoder for detector-fixed backgrounds.
+    """Linear basis autoencoder for detector-fixed backgrounds.
 
     A frame is represented as ``bias + sum_k coeff[k] * basis[k]``.  This is
     close to a low-rank frame model, but the coefficients are inferred by a
     learnable linear encoder.
-    '''
+    """
 
     encoder: eqx.nn.Linear
     bias: jax.Array
@@ -111,12 +111,12 @@ class LinearBasisAE(eqx.Module):
 
 
 class LinearBasisVAE(eqx.Module):
-    '''Linear basis VAE for detector-fixed backgrounds.
+    """Linear basis VAE for detector-fixed backgrounds.
 
     The encoder predicts a Gaussian distribution over basis coefficients.
     The decoder is the same detector-fixed linear basis model as
     :class:`LinearBasisAE`.
-    '''
+    """
 
     z_mean: eqx.nn.Linear
     z_logvar: eqx.nn.Linear

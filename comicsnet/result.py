@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""Result objects for comicsnet."""
 
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from .config import Config
 
 @dataclass(frozen=True)
 class FitResult:
-    '''Result returned by :func:`comicsnet.fit`.'''
+    """Result returned by :func:`comicsnet.fit`."""
 
     data: jax.Array
     background: jax.Array
@@ -38,6 +39,6 @@ def make_sparse(
     background: jax.Array,
     mask: jax.Array,
 ) -> jax.Array:
-    '''Return residual signal only where the sparse mask is active.'''
+    """Return residual signal only where the sparse mask is active."""
 
     return jnp.where(mask, cube - background, 0.0)

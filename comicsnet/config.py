@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""Configurations for comicsnet fitting."""
 
 from __future__ import annotations
 
@@ -8,7 +9,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Config:
-    '''Configuration for the background/sparse decomposition loop.'''
+    """Configuration for the background/sparse decomposition loop."""
 
     outer_steps: int = 10
     inner_steps: int = 100

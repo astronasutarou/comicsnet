@@ -42,12 +42,12 @@ def _encoder_input(
 
 
 class BasisAE(eqx.Module):
-    '''Basis autoencoder for detector-fixed backgrounds.
+    """Basis autoencoder for detector-fixed backgrounds.
 
     The encoder maps a full frame to a compact latent vector.  A small MLP
     then maps the latent vector to coefficients of detector-fixed basis
     images.
-    '''
+    """
 
     encode_layer0: eqx.nn.Linear
     encode_layer1: eqx.nn.Linear
@@ -144,12 +144,12 @@ class BasisAE(eqx.Module):
 
 
 class BasisVAE(eqx.Module):
-    '''Basis VAE for detector-fixed backgrounds.
+    """Basis VAE for detector-fixed backgrounds.
 
     The encoder maps a full frame to a Gaussian latent distribution.  A small
     MLP maps sampled latent vectors to coefficients of detector-fixed basis
     images.
-    '''
+    """
 
     encode_layer0: eqx.nn.Linear
     z_mean: eqx.nn.Linear
