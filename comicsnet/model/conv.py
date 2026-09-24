@@ -16,14 +16,11 @@ def _ones_weight(x: jax.Array) -> jax.Array:
 def _mask_augmented_input(
     x: jax.Array,
     weight: jax.Array | None,
-    frame_coord: jax.Array,
 ) -> jax.Array:
     if weight is None:
         weight = _ones_weight(x)
 
-    frame_coord = jnp.asarray(frame_coord, dtype=x.dtype)
-    frame_plane = jnp.ones_like(x[:1]) * frame_coord
-    return jnp.concatenate([x * weight, weight, frame_plane], axis=0)
+    return jnp.concatenate([x * weight, weight], axis=0)
 
 
 def _mean_pooling_2x2(x: jax.Array) -> jax.Array:
@@ -66,7 +63,7 @@ class ConvAE(eqx.Module):
         keys = jax.random.split(key, 7)
         self.encode_layer0 = eqx.nn.Conv(
             2,
-            3,
+            2,
             hidden_channels,
             3,
             padding='SAME',
@@ -133,9 +130,8 @@ class ConvAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        model_input = _mask_augmented_input(x, weight, frame_coord)
+        model_input = _mask_augmented_input(x, weight)
         h = jnn.gelu(self.encode_layer0(model_input))
         h = _mean_pooling_2x2(h)
         h = jnn.gelu(self.encode_layer1(h))
@@ -156,10 +152,9 @@ class ConvAE(eqx.Module):
         x: jax.Array,
         key: jax.Array,
         weight: jax.Array | None,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         del key
-        z, z_logvar = self.encode(x, weight, frame_coord)
+        z, z_logvar = self.encode(x, weight)
         x_mean, x_logvar = self.decode(z)
         return x_mean, x_logvar, z, z_logvar
 
@@ -167,9 +162,8 @@ class ConvAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        z, _ = self.encode(x, weight, frame_coord)
+        z, _ = self.encode(x, weight)
         x_mean, x_logvar = self.decode(z)
         return x_mean, x_logvar
 
@@ -201,7 +195,7 @@ class ConvVAE(eqx.Module):
         keys = jax.random.split(key, 8)
         self.encode_layer0 = eqx.nn.Conv(
             2,
-            3,
+            2,
             hidden_channels,
             3,
             padding='SAME',
@@ -277,9 +271,8 @@ class ConvVAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        model_input = _mask_augmented_input(x, weight, frame_coord)
+        model_input = _mask_augmented_input(x, weight)
         h = jnn.gelu(self.encode_layer0(model_input))
         h = _mean_pooling_2x2(h)
         h = jnn.gelu(self.encode_layer1(h))
@@ -298,9 +291,8 @@ class ConvVAE(eqx.Module):
         x: jax.Array,
         key: jax.Array,
         weight: jax.Array | None,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        z_mean, z_logvar = self.encode(x, weight, frame_coord)
+        z_mean, z_logvar = self.encode(x, weight)
         eps = jax.random.normal(key, z_mean.shape)
         z = z_mean + jnp.exp(0.5 * z_logvar) * eps
         x_mean, x_logvar = self.decode(z)
@@ -310,8 +302,7 @@ class ConvVAE(eqx.Module):
         self,
         x: jax.Array,
         weight: jax.Array | None,
-        frame_coord: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
-        z_mean, _ = self.encode(x, weight, frame_coord)
+        z_mean, _ = self.encode(x, weight)
         x_mean, x_logvar = self.decode(z_mean)
         return x_mean, x_logvar
