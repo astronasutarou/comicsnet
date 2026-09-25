@@ -9,6 +9,8 @@ import numpy as np
 import pytest
 
 from comicsnet import (
+    AdaptiveBasisAE,
+    AttentionBasisAE,
     BasisAE,
     BasisVAE,
     ConvAE,
@@ -84,6 +86,29 @@ def _basis_vae():
     )
 
 
+def _attention_basis_ae():
+    return AttentionBasisAE(
+        frame_shape=FRAME_SHAPE,
+        latent_dim=2,
+        basis_dim=3,
+        hidden_dim=4,
+        num_queries=2,
+        num_heads=2,
+        key=jax.random.PRNGKey(6),
+    )
+
+
+def _adaptive_basis_ae():
+    return AdaptiveBasisAE(
+        frame_shape=FRAME_SHAPE,
+        latent_dim=2,
+        basis_dim=3,
+        hidden_dim=4,
+        variation_dim=2,
+        key=jax.random.PRNGKey(7),
+    )
+
+
 MODEL_CASES = [
     pytest.param(_conv_ae, (1, 1, 1), False, id='conv_ae'),
     pytest.param(_conv_vae, (1, 1, 1), True, id='conv_vae'),
@@ -91,6 +116,8 @@ MODEL_CASES = [
     pytest.param(_linear_basis_vae, (3,), True, id='linear_basis_vae'),
     pytest.param(_basis_ae, (2,), False, id='basis_ae'),
     pytest.param(_basis_vae, (2,), True, id='basis_vae'),
+    pytest.param(_attention_basis_ae, (2,), False, id='attention_basis_ae'),
+    pytest.param(_adaptive_basis_ae, (2,), False, id='adaptive_basis_ae'),
 ]
 
 

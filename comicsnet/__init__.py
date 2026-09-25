@@ -5,6 +5,8 @@
 from .config import Config
 from .fit import fit, predict_background
 from .model import (
+    AdaptiveBasisAE,
+    AttentionBasisAE,
     BasisAE,
     BasisVAE,
     ConvAE,
@@ -15,18 +17,20 @@ from .model import (
 from .result import FitResult
 
 
-__version__ = '0.0.3'
+__version__ = '0.0.5'
 
 
 __all__ = [
+    'AdaptiveBasisAE',
+    'AttentionBasisAE',
     'BasisAE',
     'BasisVAE',
     'ConvAE',
     'ConvVAE',
-    'Config',
-    'FitResult',
     'LinearBasisAE',
     'LinearBasisVAE',
+    'Config',
+    'FitResult',
     '__version__',
     'fit',
     'predict_background',
