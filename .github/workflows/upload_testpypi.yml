@@ -3,6 +3,9 @@ name: upload to test.PyPI
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     name: Publish to test.PyPI
