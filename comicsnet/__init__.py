@@ -11,6 +11,7 @@ from .model import (
     BasisVAE,
     ConvAE,
     ConvVAE,
+    FlatFieldAE,
     LinearBasisAE,
     LinearBasisVAE,
 )
@@ -27,6 +28,7 @@ __all__ = [
     'BasisVAE',
     'ConvAE',
     'ConvVAE',
+    'FlatFieldAE',
     'LinearBasisAE',
     'LinearBasisVAE',
     'Config',
