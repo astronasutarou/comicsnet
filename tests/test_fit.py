@@ -128,7 +128,7 @@ def test_fit_uses_initial_mask_without_forced_mask_update() -> None:
     mask = mask.at[1, 0, 0].set(True)
     model = LinearBasisAE(
         frame_shape=(2, 2),
-        latent_dim=1,
+        basis_dim=1,
         key=jax.random.PRNGKey(0),
     )
     config = Config(
