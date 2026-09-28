@@ -18,6 +18,7 @@ from comicsnet import (
     ConvVAE,
     Config,
     FlatFieldAE,
+    FlatFieldVAE,
     LinearBasisAE,
     LinearBasisVAE,
     fit,
@@ -118,6 +119,13 @@ def _flat_field_ae():
     )
 
 
+def _flat_field_vae():
+    return FlatFieldVAE(
+        frame_shape=FRAME_SHAPE,
+        key=jax.random.PRNGKey(9),
+    )
+
+
 MODEL_CASES = [
     pytest.param(_conv_ae, (1, 1, 1), False, id='conv_ae'),
     pytest.param(_conv_vae, (1, 1, 1), True, id='conv_vae'),
@@ -128,6 +136,7 @@ MODEL_CASES = [
     pytest.param(_attention_basis_ae, (2,), False, id='attention_basis_ae'),
     pytest.param(_adaptive_basis_ae, (2,), False, id='adaptive_basis_ae'),
     pytest.param(_flat_field_ae, (1,), False, id='flat_field_ae'),
+    pytest.param(_flat_field_vae, (1,), True, id='flat_field_vae'),
 ]
 
 

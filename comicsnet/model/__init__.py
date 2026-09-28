@@ -8,7 +8,7 @@ from .adaptive_basis import AdaptiveBasisAE
 from .attention_basis import AttentionBasisAE
 from .basis import BasisAE, BasisVAE
 from .conv import ConvAE, ConvVAE
-from .flat_field import FlatFieldAE
+from .flat_field import FlatFieldAE, FlatFieldVAE
 from .linear_basis import LinearBasisAE, LinearBasisVAE
 
 
@@ -20,6 +20,7 @@ __all__ = [
     'ConvAE',
     'ConvVAE',
     'FlatFieldAE',
+    'FlatFieldVAE',
     'LinearBasisAE',
     'LinearBasisVAE',
 ]
