@@ -15,7 +15,7 @@ from .config import Config
 from .losses import gaussian_nll, kl_normal
 from .masking import observed_weight, robust_scale, update_sparse_mask
 from .result import FitResult
-from .frames import channel_first, prepare_cube, sample_frame_index
+from .frames import channel_first, prepare_cube
 from .frames import strip_channel
 
 
@@ -166,11 +166,40 @@ def _train_inner_loop(
     key: jax.Array,
     config: Config,
 ) -> tuple[Any, optax.OptState, jax.Array, tuple[float, ...]]:
-    losses: list[float] = []
+    model, opt_state, key, losses = _train_scan(
+        model,
+        opt_state,
+        optimizer,
+        data,
+        weight,
+        key,
+        config.beta,
+        config.inner_steps,
+    )
+    return model, opt_state, key, tuple(jax.device_get(losses).tolist())
 
-    for _ in range(config.inner_steps):
+
+@eqx.filter_jit
+def _train_scan(
+    model: Any,
+    opt_state: optax.OptState,
+    optimizer: optax.GradientTransformation,
+    data: jax.Array,
+    weight: jax.Array,
+    key: jax.Array,
+    beta: float,
+    n_steps: int,
+) -> tuple[Any, optax.OptState, jax.Array, jax.Array]:
+    # Keep non-array model leaves, such as activations, out of the carry.
+    params, static = eqx.partition(model, eqx.is_array)
+
+    def step(carry, _):
+        params, opt_state, key = carry
+        model = eqx.combine(params, static)
         key, frame_key, vae_key = jax.random.split(key, 3)
-        frame_index = sample_frame_index(frame_key, data.shape[0])
+        frame_index = jax.random.randint(
+            frame_key, (), 0, data.shape[0],
+        )
         x = channel_first(data[frame_index])
         w = channel_first(weight[frame_index])
         model, opt_state, loss = _train_step(
@@ -180,11 +209,18 @@ def _train_inner_loop(
             x,
             w,
             vae_key,
-            config.beta,
+            beta,
         )
-        losses.append(float(loss))
+        params = eqx.filter(model, eqx.is_array)
+        return (params, opt_state, key), loss
 
-    return model, opt_state, key, tuple(losses)
+    (params, opt_state, key), losses = jax.lax.scan(
+        step,
+        (params, opt_state, key),
+        xs=None,
+        length=n_steps,
+    )
+    return eqx.combine(params, static), opt_state, key, losses
 
 
 @eqx.filter_jit

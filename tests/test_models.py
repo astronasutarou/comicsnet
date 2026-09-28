@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -410,9 +411,12 @@ def test_model_prediction_is_independent_of_frame_order(
     'factory, latent_shape, use_kl',
     MODEL_CASES,
 )
-def test_model_fit_minimal(factory, latent_shape, use_kl) -> None:
+@pytest.mark.parametrize('enable_x64', [False, True])
+@pytest.mark.filterwarnings('error')
+def test_model_fit_minimal(
+    factory, latent_shape, use_kl, enable_x64,
+) -> None:
     del latent_shape, use_kl
-    model = factory()
     config = Config(
         outer_steps=1,
         inner_steps=1,
@@ -423,7 +427,20 @@ def test_model_fit_minimal(factory, latent_shape, use_kl) -> None:
         dilation_size=1,
     )
 
-    result = fit(model, CUBE, config=config)
+    with jax.enable_x64(enable_x64):
+        model = factory()
+        dtype = jnp.float64 if enable_x64 else jnp.float32
+        cube = np.arange(32, dtype=np.int64).reshape(2, *FRAME_SHAPE)
+        result = fit(model, cube, config=config)
+
+        for current_model in (model, result.model):
+            arrays = eqx.filter(current_model, eqx.is_inexact_array)
+            for array in jax.tree_util.tree_leaves(arrays):
+                assert array.dtype == dtype
+        assert result.data.dtype == dtype
+        assert result.background.dtype == dtype
+        assert result.uncertainty.dtype == dtype
+        assert result.mask.dtype == jnp.bool_
 
     assert result.data.shape == CUBE.shape
     assert result.background.shape == CUBE.shape
