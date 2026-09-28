@@ -16,11 +16,21 @@ from comicsnet.frames import (
 )
 
 
-def test_prepare_cube_returns_float32_3d_array() -> None:
-    cube = prepare_cube(np.zeros((2, 3, 4), dtype=np.int16))
+@pytest.mark.parametrize('enable_x64', [False, True])
+@pytest.mark.parametrize(
+    'input_dtype', [np.int16, np.int32, np.int64, np.float32, np.float64],
+)
+@pytest.mark.filterwarnings('error')
+def test_prepare_cube_uses_default_float_dtype(
+    enable_x64, input_dtype,
+) -> None:
+    data = np.arange(24, dtype=input_dtype).reshape(2, 3, 4)
+    with jax.enable_x64(enable_x64):
+        cube = prepare_cube(data)
 
-    assert cube.shape == (2, 3, 4)
-    assert cube.dtype == jnp.float32
+        assert cube.shape == data.shape
+        assert cube.dtype == (jnp.float64 if enable_x64 else jnp.float32)
+        np.testing.assert_array_equal(cube, data)
 
 
 def test_prepare_cube_rejects_non_3d_input() -> None:

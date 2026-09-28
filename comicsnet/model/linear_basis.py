@@ -56,12 +56,12 @@ class LinearBasisAE(eqx.Module):
         encoder_key, basis_key = jax.random.split(key)
 
         self.encoder = eqx.nn.Linear(n_pixels, basis_dim, key=encoder_key)
-        self.bias = jnp.zeros(frame_shape, dtype=jnp.float32)
+        self.bias = jnp.zeros(frame_shape)
         self.basis = init_scale * jax.random.normal(
             basis_key,
             (basis_dim, height, width),
         )
-        self.out_logvar = jnp.zeros(frame_shape, dtype=jnp.float32)
+        self.out_logvar = jnp.zeros(frame_shape)
         self.frame_shape = frame_shape
         self.basis_dim = basis_dim
         self.use_kl = False
@@ -139,12 +139,12 @@ class LinearBasisVAE(eqx.Module):
             basis_dim,
             key=logvar_key,
         )
-        self.bias = jnp.zeros(frame_shape, dtype=jnp.float32)
+        self.bias = jnp.zeros(frame_shape)
         self.basis = init_scale * jax.random.normal(
             basis_key,
             (basis_dim, height, width),
         )
-        self.out_logvar = jnp.zeros(frame_shape, dtype=jnp.float32)
+        self.out_logvar = jnp.zeros(frame_shape)
         self.frame_shape = frame_shape
         self.basis_dim = basis_dim
         self.use_kl = True

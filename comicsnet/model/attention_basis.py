@@ -68,11 +68,11 @@ class AttentionBasisAE(BasisAE):
         self.coeff_layer = eqx.nn.Linear(
             latent_dim, basis_dim, key=keys[3],
         )
-        self.bias = jnp.zeros(frame_shape, dtype=jnp.float32)
+        self.bias = jnp.zeros(frame_shape)
         self.basis = init_scale * jax.random.normal(
             keys[4], (basis_dim, height, width),
         )
-        self.out_logvar = jnp.zeros(frame_shape, dtype=jnp.float32)
+        self.out_logvar = jnp.zeros(frame_shape)
         self.frame_shape = frame_shape
         self.latent_dim = latent_dim
         self.basis_dim = basis_dim

@@ -8,10 +8,16 @@ import jax
 import jax.numpy as jnp
 
 
-def prepare_cube(cube: jax.Array) -> jax.Array:
-    """Convert input data to a floating point ``(time, y, x)`` array."""
+def _default_float_dtype() -> type:
+    """Return the floating point type selected by JAX's X64 setting."""
 
-    array = jnp.asarray(cube, dtype=jnp.float32)
+    return jnp.float64 if jax.config.x64_enabled else jnp.float32
+
+
+def prepare_cube(cube: jax.Array) -> jax.Array:
+    """Convert a cube to the default JAX floating point type."""
+
+    array = jnp.asarray(cube, dtype=_default_float_dtype())
     if array.ndim != 3:
         raise ValueError('cube must have shape (time, y, x)')
     return array
