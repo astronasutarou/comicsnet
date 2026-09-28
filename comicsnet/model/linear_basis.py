@@ -30,6 +30,9 @@ class LinearBasisAE(eqx.Module):
     A frame is represented as ``bias + sum_k coeff[k] * basis[k]``.  This is
     close to a low-rank frame model, but the coefficients are inferred by a
     learnable linear encoder.
+
+    ``basis_dim`` is both the number of basis images and the latent dimension,
+    since the latent variables are directly used as basis coefficients.
     """
 
     encoder: eqx.nn.Linear
@@ -37,14 +40,14 @@ class LinearBasisAE(eqx.Module):
     basis: jax.Array
     out_logvar: jax.Array
     frame_shape: tuple[int, int]
-    latent_dim: int
+    basis_dim: int
     use_kl: bool = eqx.field(static=True)
 
     def __init__(
         self,
         *,
         frame_shape: tuple[int, int],
-        latent_dim: int,
+        basis_dim: int,
         key: jax.Array,
         init_scale: float = 1.0e-3,
     ) -> None:
@@ -52,15 +55,15 @@ class LinearBasisAE(eqx.Module):
         n_pixels = height * width
         encoder_key, basis_key = jax.random.split(key)
 
-        self.encoder = eqx.nn.Linear(n_pixels, latent_dim, key=encoder_key)
+        self.encoder = eqx.nn.Linear(n_pixels, basis_dim, key=encoder_key)
         self.bias = jnp.zeros(frame_shape, dtype=jnp.float32)
         self.basis = init_scale * jax.random.normal(
             basis_key,
-            (latent_dim, height, width),
+            (basis_dim, height, width),
         )
         self.out_logvar = jnp.zeros(frame_shape, dtype=jnp.float32)
         self.frame_shape = frame_shape
-        self.latent_dim = latent_dim
+        self.basis_dim = basis_dim
         self.use_kl = False
 
     def encode(
@@ -104,6 +107,9 @@ class LinearBasisVAE(eqx.Module):
     The encoder predicts a Gaussian distribution over basis coefficients.
     The decoder is the same detector-fixed linear basis model as
     :class:`LinearBasisAE`.
+
+    ``basis_dim`` is both the number of basis images and the dimension of the
+    latent coefficient distribution.
     """
 
     z_mean: eqx.nn.Linear
@@ -112,14 +118,14 @@ class LinearBasisVAE(eqx.Module):
     basis: jax.Array
     out_logvar: jax.Array
     frame_shape: tuple[int, int]
-    latent_dim: int
+    basis_dim: int
     use_kl: bool = eqx.field(static=True)
 
     def __init__(
         self,
         *,
         frame_shape: tuple[int, int],
-        latent_dim: int,
+        basis_dim: int,
         key: jax.Array,
         init_scale: float = 1.0e-3,
     ) -> None:
@@ -127,20 +133,20 @@ class LinearBasisVAE(eqx.Module):
         n_pixels = height * width
         mean_key, logvar_key, basis_key = jax.random.split(key, 3)
 
-        self.z_mean = eqx.nn.Linear(n_pixels, latent_dim, key=mean_key)
+        self.z_mean = eqx.nn.Linear(n_pixels, basis_dim, key=mean_key)
         self.z_logvar = eqx.nn.Linear(
             n_pixels,
-            latent_dim,
+            basis_dim,
             key=logvar_key,
         )
         self.bias = jnp.zeros(frame_shape, dtype=jnp.float32)
         self.basis = init_scale * jax.random.normal(
             basis_key,
-            (latent_dim, height, width),
+            (basis_dim, height, width),
         )
         self.out_logvar = jnp.zeros(frame_shape, dtype=jnp.float32)
         self.frame_shape = frame_shape
-        self.latent_dim = latent_dim
+        self.basis_dim = basis_dim
         self.use_kl = True
 
     def encode(

@@ -53,7 +53,7 @@ def _conv_vae():
 def _linear_basis_ae():
     return LinearBasisAE(
         frame_shape=FRAME_SHAPE,
-        latent_dim=3,
+        basis_dim=3,
         key=jax.random.PRNGKey(2),
     )
 
@@ -61,7 +61,7 @@ def _linear_basis_ae():
 def _linear_basis_vae():
     return LinearBasisVAE(
         frame_shape=FRAME_SHAPE,
-        latent_dim=3,
+        basis_dim=3,
         key=jax.random.PRNGKey(3),
     )
 
@@ -119,6 +119,36 @@ MODEL_CASES = [
     pytest.param(_attention_basis_ae, (2,), False, id='attention_basis_ae'),
     pytest.param(_adaptive_basis_ae, (2,), False, id='adaptive_basis_ae'),
 ]
+
+
+@pytest.mark.parametrize('model_type', [LinearBasisAE, LinearBasisVAE])
+@pytest.mark.parametrize('basis_dim', [1, 3])
+def test_linear_basis_dimension(model_type, basis_dim) -> None:
+    model = model_type(
+        frame_shape=FRAME_SHAPE,
+        basis_dim=basis_dim,
+        key=jax.random.PRNGKey(0),
+    )
+
+    assert model.basis_dim == basis_dim
+    assert not hasattr(model, 'latent_dim')
+    assert model.basis.shape == (basis_dim, *FRAME_SHAPE)
+    coeff_mean, coeff_logvar = model.encode(FRAME, WEIGHT)
+    assert coeff_mean.shape == (basis_dim,)
+    assert coeff_logvar.shape == (basis_dim,)
+    mean, logvar = model.decode(coeff_mean)
+    assert mean.shape == FRAME.shape
+    assert logvar.shape == FRAME.shape
+
+
+@pytest.mark.parametrize('model_type', [LinearBasisAE, LinearBasisVAE])
+def test_linear_basis_rejects_latent_dim(model_type) -> None:
+    with pytest.raises(TypeError, match='latent_dim'):
+        model_type(
+            frame_shape=FRAME_SHAPE,
+            latent_dim=3,
+            key=jax.random.PRNGKey(0),
+        )
 
 
 def test_linear_basis_fraction_normalized_input() -> None:
