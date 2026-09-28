@@ -17,7 +17,7 @@ from .model import (
 from .result import FitResult
 
 
-__version__ = '0.0.7'
+__version__ = '0.0.9'
 
 
 __all__ = [

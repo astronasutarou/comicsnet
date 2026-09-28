@@ -3,12 +3,20 @@
 
 from __future__ import annotations
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
-from comicsnet import Config, LinearBasisAE, fit
-from comicsnet.fit import predict_background
+from comicsnet import BasisAE, BasisVAE, Config, LinearBasisAE, fit
+from comicsnet.fit import (
+    _make_optimizer,
+    _train_inner_loop,
+    _train_step,
+    predict_background,
+)
+from comicsnet.frames import channel_first, sample_frame_index
 
 
 class ConstantLogvarModel:
@@ -146,3 +154,72 @@ def test_fit_uses_initial_mask_without_forced_mask_update() -> None:
         np.asarray(result.mask),
         np.asarray(mask),
     )
+
+
+@pytest.mark.parametrize('model_type', [BasisAE, BasisVAE])
+@pytest.mark.parametrize('global_norm', [None, 1.0])
+def test_train_scan_matches_python_loop(model_type, global_norm) -> None:
+    model = model_type(
+        frame_shape=(2, 2),
+        hidden_dim=4,
+        latent_dim=2,
+        basis_dim=2,
+        key=jax.random.PRNGKey(0),
+    )
+    data = jnp.arange(12, dtype=jnp.float32).reshape(3, 2, 2) / 10
+    weight = jnp.ones_like(data).at[:, 0, 1].set(0.0)
+    config = Config(
+        inner_steps=3,
+        global_norm=global_norm,
+        beta=0.1,
+    )
+    optimizer = _make_optimizer(config)
+    state = optimizer.init(eqx.filter(model, eqx.is_inexact_array))
+    key = jax.random.PRNGKey(1)
+    reference_model, reference_state, reference_key = model, state, key
+
+    # Continue with new weights, as happens across outer mask updates.
+    for current_weight in (weight, 1.0 - weight):
+        reference_losses = []
+        for _ in range(config.inner_steps):
+            reference_key, frame_key, vae_key = jax.random.split(
+                reference_key, 3,
+            )
+            index = sample_frame_index(frame_key, data.shape[0])
+            reference_model, reference_state, loss = _train_step(
+                reference_model,
+                reference_state,
+                optimizer,
+                channel_first(data[index]),
+                channel_first(current_weight[index]),
+                vae_key,
+                config.beta,
+            )
+            reference_losses.append(float(loss))
+
+        model, state, key, losses = _train_inner_loop(
+            model, state, optimizer, data, current_weight, key, config,
+        )
+
+        assert isinstance(losses, tuple)
+        assert all(isinstance(loss, float) for loss in losses)
+        np.testing.assert_allclose(
+            losses, reference_losses, rtol=1e-5, atol=1e-6,
+        )
+        np.testing.assert_array_equal(key, reference_key)
+        actual = eqx.filter((model, state), eqx.is_array)
+        expected = eqx.filter(
+            (reference_model, reference_state), eqx.is_array,
+        )
+        assert (
+            jax.tree_util.tree_structure(actual)
+            == jax.tree_util.tree_structure(expected)
+        )
+        for value, reference in zip(
+            jax.tree_util.tree_leaves(actual),
+            jax.tree_util.tree_leaves(expected),
+            strict=True,
+        ):
+            np.testing.assert_allclose(
+                value, reference, rtol=1e-5, atol=1e-6,
+            )
