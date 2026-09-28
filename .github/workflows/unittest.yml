@@ -4,12 +4,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   unittest:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     strategy:
       fail-fast: false
