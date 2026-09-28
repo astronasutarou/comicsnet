@@ -30,10 +30,14 @@ class Config:
             Defaults to None.
         adam_b1 (float):
             Exponential decay rate for Adam's first gradient
-            moment estimate. Defaults to 0.9.
+            moment estimate. Defaults to 0.95.
         adam_b2 (float):
             Exponential decay rate for Adam's second gradient
             moment estimate. Defaults to 0.999.
+        adam_epsilon (float):
+            Constant added outside the square root in Adam's denominator
+            for numerical stability. Passed as Optax's ``eps`` parameter.
+            Defaults to 1.0e-8.
         beta (float):
             Weight of the KL regularization term for VAE models. The
             loss is the weighted mean Gaussian negative log likelihood plus
@@ -86,8 +90,9 @@ class Config:
     inner_steps: int = 1000
     learning_rate: float = 1.0e-4
     global_norm: float | None = None
-    adam_b1: float = 0.9
+    adam_b1: float = 0.95
     adam_b2: float = 0.999
+    adam_epsilon: float = 1.0e-8
     beta: float = 1.0e-4
     threshold_sigma: float = 5.0
     min_scale: float = 1.0e-6

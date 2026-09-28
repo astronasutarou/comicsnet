@@ -147,6 +147,7 @@ def _make_optimizer(config: Config) -> optax.GradientTransformation:
         config.learning_rate,
         b1=config.adam_b1,
         b2=config.adam_b2,
+        eps=config.adam_epsilon,
     )
     if config.global_norm is None:
         return optimizer

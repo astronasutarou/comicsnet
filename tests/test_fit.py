@@ -156,6 +156,34 @@ def test_fit_uses_initial_mask_without_forced_mask_update() -> None:
     )
 
 
+@pytest.mark.parametrize('epsilon', [1.0e-8, 0.1])
+@pytest.mark.parametrize('global_norm', [None, 0.25])
+def test_optimizer_uses_adam_epsilon(epsilon, global_norm) -> None:
+    config = Config(
+        learning_rate=0.01,
+        adam_b1=0.0,
+        adam_b2=0.0,
+        adam_epsilon=epsilon,
+        global_norm=global_norm,
+    )
+    params = jnp.zeros(2)
+    grads = jnp.asarray([0.1, -0.4])
+    optimizer = _make_optimizer(config)
+    state = optimizer.init(params)
+
+    updates, _ = optimizer.update(grads, state, params)
+
+    expected_grads = np.asarray(grads)
+    if global_norm is not None:
+        expected_grads = expected_grads * min(
+            1.0, global_norm / np.linalg.norm(expected_grads),
+        )
+    expected = -config.learning_rate * expected_grads / (
+        np.abs(expected_grads) + epsilon
+    )
+    np.testing.assert_allclose(updates, expected, rtol=1.0e-6)
+
+
 @pytest.mark.parametrize('model_type', [BasisAE, BasisVAE])
 def test_inner_loop_preserves_state_across_blocks(model_type) -> None:
     model = model_type(
@@ -170,6 +198,7 @@ def test_inner_loop_preserves_state_across_blocks(model_type) -> None:
     config = Config(
         inner_steps=3,
         global_norm=1.0,
+        adam_epsilon=1.0e-3,
         beta=0.1,
     )
     optimizer = _make_optimizer(config)

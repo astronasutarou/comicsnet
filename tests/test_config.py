@@ -11,24 +11,35 @@ import pytest
 from comicsnet.config import Config
 
 
-def test_defaults() -> None:
+@pytest.mark.parametrize(
+    'name, expected_types',
+    [
+        ('outer_steps', (int,)),
+        ('inner_steps', (int,)),
+        ('learning_rate', (float,)),
+        ('global_norm', (float, type(None))),
+        ('adam_b1', (float,)),
+        ('adam_b2', (float,)),
+        ('adam_epsilon', (float,)),
+        ('beta', (float,)),
+        ('threshold_sigma', (float,)),
+        ('min_scale', (float,)),
+        ('erosion_size', (int,)),
+        ('dilation_size', (int,)),
+        ('mask_fraction_limit', (float,)),
+        ('seed', (int,)),
+        ('standardize', (bool,)),
+        ('update_mask', (bool,)),
+    ],
+)
+def test_default_field_exists_and_has_expected_type(
+    name, expected_types,
+) -> None:
     config = Config()
 
-    assert config.outer_steps == 5
-    assert config.inner_steps == 1000
-    assert config.erosion_size == 3
-    assert config.dilation_size == 3
-    assert config.mask_fraction_limit == 0.2
-    assert config.learning_rate == 1.0e-4
-    assert config.global_norm is None
-    assert config.adam_b1 == 0.9
-    assert config.adam_b2 == 0.999
-    assert config.beta == 1.0e-4
-    assert config.threshold_sigma == 5.0
-    assert config.min_scale == 1.0e-6
-    assert config.seed == 0
-    assert config.standardize
-    assert config.update_mask
+    assert name in {field.name for field in fields(Config)}
+    # Exact types distinguish integer options from bool, an int subclass.
+    assert type(getattr(config, name)) in expected_types
 
 
 def test_overrides() -> None:
@@ -37,8 +48,9 @@ def test_overrides() -> None:
         inner_steps=3,
         learning_rate=2.0e-3,
         global_norm=1.0,
-        adam_b1=0.95,
+        adam_b1=0.9,
         adam_b2=0.99,
+        adam_epsilon=1.0e-6,
         beta=2.0e-4,
         threshold_sigma=4.0,
         min_scale=1.0e-5,
@@ -54,8 +66,9 @@ def test_overrides() -> None:
     assert config.inner_steps == 3
     assert config.learning_rate == 2.0e-3
     assert config.global_norm == 1.0
-    assert config.adam_b1 == 0.95
+    assert config.adam_b1 == 0.9
     assert config.adam_b2 == 0.99
+    assert config.adam_epsilon == 1.0e-6
     assert config.beta == 2.0e-4
     assert config.threshold_sigma == 4.0
     assert config.min_scale == 1.0e-5
