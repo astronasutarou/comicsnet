@@ -9,8 +9,6 @@ from .model import (
     AttentionBasisAE,
     BasisAE,
     BasisVAE,
-    ConvAE,
-    ConvVAE,
     FlatFieldAE,
     FlatFieldVAE,
     LinearBasisAE,
@@ -19,7 +17,7 @@ from .model import (
 from .result import FitResult
 
 
-__version__ = '0.0.11'
+__version__ = '0.0.12'
 
 
 __all__ = [
@@ -27,8 +25,6 @@ __all__ = [
     'AttentionBasisAE',
     'BasisAE',
     'BasisVAE',
-    'ConvAE',
-    'ConvVAE',
     'FlatFieldAE',
     'FlatFieldVAE',
     'LinearBasisAE',
