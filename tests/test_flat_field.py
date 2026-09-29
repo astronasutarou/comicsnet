@@ -184,7 +184,10 @@ def test_weights_have_finite_gradients(model_type, fraction) -> None:
     weight = WEIGHT * fraction
 
     def loss(m):
-        return _loss(m, FRAME, weight, jax.random.PRNGKey(1), 0.1)
+        return _loss(
+            m, FRAME, weight, jax.random.PRNGKey(1), 0.1,
+            Config().logvar_clip,
+        )
 
     value, grads = eqx.filter_jit(eqx.filter_value_and_grad(loss))(model)
     assert bool(jnp.isfinite(value))
@@ -276,7 +279,12 @@ def test_vae_prediction_uses_flux_mean_not_posterior_variance() -> None:
     np.testing.assert_allclose(uncertainty, 3.0)
 
 
-def test_vae_loss_includes_beta_weighted_flux_kl() -> None:
+@pytest.mark.parametrize(
+    'logvar_clip',
+    [Config().logvar_clip, lambda x: x + 2.0],
+    ids=['default', 'shifted'],
+)
+def test_vae_loss_includes_beta_weighted_flux_kl(logvar_clip) -> None:
     model = _model(FlatFieldVAE, depth=0)
     model = eqx.tree_at(
         lambda m: (m.encoder.layers[-1].weight, m.encoder.layers[-1].bias),
@@ -286,14 +294,16 @@ def test_vae_loss_includes_beta_weighted_flux_kl() -> None:
     )
     key = jax.random.PRNGKey(1)
     mean, logvar, _, _ = model(FRAME, key, WEIGHT)
-    reconstruction = gaussian_nll(FRAME, mean, logvar, WEIGHT)
+    reconstruction = gaussian_nll(
+        FRAME, mean, logvar_clip(logvar), WEIGHT,
+    )
     expected_kl = 0.5 * (4.0 + 2.0 ** 2 - 1.0 - jnp.log(4.0))
 
     np.testing.assert_allclose(
-        _loss(model, FRAME, WEIGHT, key, 0.0), reconstruction,
+        _loss(model, FRAME, WEIGHT, key, 0.0, logvar_clip), reconstruction,
     )
     np.testing.assert_allclose(
-        _loss(model, FRAME, WEIGHT, key, 0.3),
+        _loss(model, FRAME, WEIGHT, key, 0.3, logvar_clip),
         reconstruction + 0.3 * expected_kl,
     )
 

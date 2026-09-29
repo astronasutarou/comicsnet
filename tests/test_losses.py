@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import jax
 import jax.numpy as jnp
 import pytest
 
@@ -31,6 +32,19 @@ def test_gaussian_nll_returns_zero_for_empty_weight() -> None:
     assert float(loss) == pytest.approx(0.0)
 
 
+@pytest.mark.parametrize('logvar', [-14.0, 10.0])
+def test_gaussian_nll_does_not_clip_logvar(logvar) -> None:
+    x = jnp.zeros(1)
+
+    def loss(value):
+        return gaussian_nll(x, x, value, jnp.ones_like(x))
+
+    value, grad = jax.value_and_grad(loss)(jnp.asarray(logvar))
+
+    assert float(value) == pytest.approx(0.5 * logvar)
+    assert float(grad) == pytest.approx(0.5)
+
+
 def test_kl_normal_is_zero_for_unit_normal() -> None:
     mean = jnp.zeros((2, 3))
     logvar = jnp.zeros((2, 3))
@@ -47,4 +61,3 @@ def test_kl_normal_penalizes_nonzero_mean() -> None:
     kl = kl_normal(mean, logvar)
 
     assert float(kl) == pytest.approx(0.5)
-

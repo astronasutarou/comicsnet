@@ -13,6 +13,7 @@ import pytest
 
 from comicsnet import BasisAE, BasisVAE, Config, LinearBasisAE, fit
 from comicsnet.fit import (
+    _loss,
     _make_optimizer,
     _train_inner_loop,
     predict_background,
@@ -153,6 +154,78 @@ def test_fit_uses_initial_mask_without_forced_mask_update() -> None:
     np.testing.assert_array_equal(
         np.asarray(result.mask),
         np.asarray(mask),
+    )
+
+
+@pytest.mark.parametrize(
+    'logvar_clip, expected_logvar, expected_derivative',
+    [
+        pytest.param(
+            Config().logvar_clip,
+            [-12.0, 0.0, 3.0, 8.0], [0.0, 1.0, 1.0, 0.0],
+            id='default',
+        ),
+        pytest.param(
+            lambda x: x,
+            [-14.0, 0.0, 3.0, 10.0], [1.0, 1.0, 1.0, 1.0],
+            id='identity',
+        ),
+        pytest.param(
+            lambda x: jnp.clip(x, -2.0, 2.0),
+            [-2.0, 0.0, 2.0, 2.0], [0.0, 1.0, 0.0, 0.0],
+            id='custom-bounds',
+        ),
+        pytest.param(
+            lambda x: 2.0 * jnp.tanh(x / 2.0),
+            2.0 * np.tanh(np.array([-7.0, 0.0, 1.5, 5.0])),
+            1.0 / np.cosh(np.array([-7.0, 0.0, 1.5, 5.0])) ** 2,
+            id='smooth',
+        ),
+    ],
+)
+def test_fit_uses_logvar_clip_in_training_and_prediction(
+    logvar_clip, expected_logvar, expected_derivative,
+) -> None:
+    model = LinearBasisAE(
+        frame_shape=(2, 2), basis_dim=1, key=jax.random.PRNGKey(0),
+    )
+    raw_logvar = jnp.asarray([[-14.0, 0.0], [3.0, 10.0]])
+    model = eqx.tree_at(
+        lambda m: (m.basis, m.out_logvar), model,
+        (jnp.zeros_like(model.basis), raw_logvar),
+    )
+    cube = jnp.zeros((1, 2, 2))
+    mask = jnp.asarray([[[False, True], [False, False]]])
+    weight = (~mask).astype(cube.dtype)
+    config = Config(
+        outer_steps=1, inner_steps=2, learning_rate=0.0,
+        standardize=False, update_mask=False, logvar_clip=logvar_clip,
+    )
+
+    result = fit(model, cube, mask=mask, config=config)
+
+    expected_logvar = np.asarray(expected_logvar).reshape(cube.shape)
+    expected_loss = np.sum(weight * expected_logvar) / (2 * weight.sum())
+    np.testing.assert_allclose(result.losses, expected_loss, atol=1.0e-6)
+    np.testing.assert_allclose(
+        result.uncertainty, np.exp(0.5 * expected_logvar), rtol=1.0e-6,
+    )
+    np.testing.assert_array_equal(result.background, cube)
+    np.testing.assert_array_equal(result.mask, mask)
+    np.testing.assert_array_equal(result.model.out_logvar, raw_logvar)
+    np.testing.assert_array_equal(
+        result.model.predict(cube, weight)[1], raw_logvar[None, ...],
+    )
+
+    grads = eqx.filter_jit(eqx.filter_grad(_loss))(
+        model, cube, weight, jax.random.PRNGKey(1), 0.0, logvar_clip,
+    )
+    expected_grad = (
+        np.asarray(expected_derivative).reshape(2, 2)
+        * np.asarray(weight[0]) / (2 * weight.sum())
+    )
+    np.testing.assert_allclose(
+        grads.out_logvar, expected_grad, rtol=1.0e-5, atol=1.0e-7,
     )
 
 

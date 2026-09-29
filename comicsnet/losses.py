@@ -14,9 +14,8 @@ def gaussian_nll(
     logvar: jax.Array,
     weight: jax.Array,
 ) -> jax.Array:
-    """Masked Gaussian negative log likelihood."""
+    """Masked Gaussian NLL using the supplied log variance without clipping."""
 
-    logvar = jnp.clip(logvar, -12.0, 8.0)
     nll = 0.5 * ((x - mean) ** 2 * jnp.exp(-logvar) + logvar)
     return jnp.sum(weight * nll) / jnp.maximum(jnp.sum(weight), 1.0)
 

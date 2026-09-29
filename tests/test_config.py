@@ -6,6 +6,8 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 from dataclasses import fields
 
+import jax.numpy as jnp
+import numpy as np
 import pytest
 
 from comicsnet.config import Config
@@ -43,6 +45,9 @@ def test_default_field_exists_and_has_expected_type(
 
 
 def test_overrides() -> None:
+    def logvar_clip(x):
+        return x
+
     config = Config(
         outer_steps=2,
         inner_steps=3,
@@ -52,6 +57,7 @@ def test_overrides() -> None:
         adam_b2=0.99,
         adam_epsilon=1.0e-6,
         beta=2.0e-4,
+        logvar_clip=logvar_clip,
         threshold_sigma=4.0,
         min_scale=1.0e-5,
         seed=42,
@@ -70,6 +76,7 @@ def test_overrides() -> None:
     assert config.adam_b2 == 0.99
     assert config.adam_epsilon == 1.0e-6
     assert config.beta == 2.0e-4
+    assert config.logvar_clip is logvar_clip
     assert config.threshold_sigma == 4.0
     assert config.min_scale == 1.0e-5
     assert config.seed == 42
@@ -78,6 +85,18 @@ def test_overrides() -> None:
     assert config.mask_fraction_limit == 0.4
     assert not config.standardize
     assert not config.update_mask
+
+
+def test_default_logvar_clip() -> None:
+    config = Config()
+
+    assert 'logvar_clip' in {field.name for field in fields(Config)}
+    assert callable(config.logvar_clip)
+    logvar = jnp.asarray([-20.0, -12.0, 0.0, 8.0, 20.0])
+
+    np.testing.assert_array_equal(
+        config.logvar_clip(logvar), [-12.0, -12.0, 0.0, 8.0, 8.0],
+    )
 
 
 def test_frozen() -> None:

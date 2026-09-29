@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import equinox as eqx
@@ -109,7 +110,7 @@ def predict_background(
         w = channel_first(weight[frame_index])
         frame_mean, frame_logvar = model.predict(x, w)
         mean = mean.at[frame_index].set(strip_channel(frame_mean))
-        frame_logvar = jnp.clip(strip_channel(frame_logvar), -12.0, 8.0)
+        frame_logvar = strip_channel(config.logvar_clip(frame_logvar))
         frame_uncertainty = jnp.exp(0.5 * frame_logvar)
         uncertainty = uncertainty.at[frame_index].set(frame_uncertainty)
 
@@ -176,6 +177,7 @@ def _train_inner_loop(
         key,
         config.beta,
         config.inner_steps,
+        config.logvar_clip,
     )
     return model, opt_state, key, tuple(jax.device_get(losses).tolist())
 
@@ -190,6 +192,7 @@ def _train_scan(
     key: jax.Array,
     beta: float,
     n_steps: int,
+    logvar_clip: Callable[[jax.Array], jax.Array],
 ) -> tuple[Any, optax.OptState, jax.Array, jax.Array]:
     # Keep non-array model leaves, such as activations, out of the carry.
     params, static = eqx.partition(model, eqx.is_array)
@@ -211,6 +214,7 @@ def _train_scan(
             w,
             vae_key,
             beta,
+            logvar_clip,
         )
         params = eqx.filter(model, eqx.is_array)
         return (params, opt_state, key), loss
@@ -233,6 +237,7 @@ def _train_step(
     weight: jax.Array,
     key: jax.Array,
     beta: float,
+    logvar_clip: Callable[[jax.Array], jax.Array],
 ) -> tuple[Any, optax.OptState, jax.Array]:
     loss, grads = eqx.filter_value_and_grad(_loss)(
         model,
@@ -240,6 +245,7 @@ def _train_step(
         weight,
         key,
         beta,
+        logvar_clip,
     )
     updates, opt_state = optimizer.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
@@ -252,8 +258,10 @@ def _loss(
     weight: jax.Array,
     key: jax.Array,
     beta: float,
+    logvar_clip: Callable[[jax.Array], jax.Array],
 ) -> jax.Array:
     mean, logvar, z_mean, z_logvar = model(x, key, weight)
+    logvar = logvar_clip(logvar)
     regularization = jnp.asarray(0.0)
     if getattr(model, 'use_kl', True):
         regularization = kl_normal(z_mean, z_logvar)

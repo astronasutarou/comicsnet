@@ -4,7 +4,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+
+import jax
+import jax.numpy as jnp
+
+
+def default_logvar_clip(logvar: jax.Array) -> jax.Array:
+    """Limit output log variance to the original fitting range."""
+    return jnp.clip(logvar, -12.0, 8.0)
 
 
 @dataclass(frozen=True)
@@ -44,6 +53,13 @@ class Config:
             ``beta`` times the KL divergence to a standard normal prior,
             averaged over latent elements. Ignored by models with
             ``use_kl=False``. Defaults to 1.0e-4.
+        logvar_clip (Callable[[jax.Array], jax.Array]):
+            Transform output log variance before reconstruction loss and
+            uncertainty evaluation. Must support JAX JIT and automatic
+            differentiation and preserve shape. Defaults to clipping to
+            [-12, 8]. Use ``lambda x: x`` to disable clipping. Applied in
+            standardized units when standardize is True. Does not transform
+            VAE latent log variance or direct model predictions.
         threshold_sigma (float):
             Threshold for positive residuals after
             subtracting each frame's mean residual, in units of the frame's
@@ -94,6 +110,7 @@ class Config:
     adam_b2: float = 0.999
     adam_epsilon: float = 1.0e-8
     beta: float = 1.0e-4
+    logvar_clip: Callable[[jax.Array], jax.Array] = default_logvar_clip
     threshold_sigma: float = 5.0
     min_scale: float = 1.0e-6
     erosion_size: int = 3
